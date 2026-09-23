@@ -293,6 +293,20 @@ I2 leaf(有效)->validRoot(无中间)        -> OK len=2000
 ```
 结论:链中**非锚节点**(叶子、中间)的过期被强制校验;根(锚)过期能否被校验,经 `system:` 无法用真实证书单独证明(见 9.3)。
 
+### 9.5 `system:` 与 `file:` 在 B/C/D/E 场景的对标
+B/C/D/E 最初是 `file:` 钱包测的。下面补 `system:`(OS 信任库)版本:
+
+| # | 场景 | file: 结果 | system: 结果 | 说明 |
+|---|---|---|---|---|
+| B | 有效证书 TLS1.2 | OK | OK(example.com 559) | system: 对公网有效证书放行 |
+| C | 仅 TLS1.1 | ORA-29019 | **ORA-29019**(自签 TLS1.1 服务器) | system: 同样拒 TLS1.1;**版本校验先于证书校验**——自签证书本会触发 ORA-29024,但握手在版本协商阶段就失败,故报 ORA-29019 |
+| D | 过期证书 | ORA-29024 | **ORA-29024**(clock→2049,系统根全过期,见 §9.2) | 已归档;叶子单过期经 system: 难干净隔离(公网叶子总比根先过期,无公共 CA 私钥) |
+| E | 主机名不匹配 | ORA-24263 | **ORA-24263**(baidu 用 IP 访问,根由 system: 信任) | 根受信、仅 CN≠IP → 主机名校验失败,与 file: 同码 |
+
+**结论**:`system:` 在 TLS 版本(ORA-29019)、过期(ORA-29024)、主机名(ORA-24263)上的错误码与 `file:` 完全一致——校验逻辑同源(底层都是 OpenSSL),区别只在信任库来源(OS bundle vs Oracle 钱包)。
+> C-system 构造:本机 `openssl s_server -tls1_1 -cipher 'DEFAULT:@SECLEVEL=0'`(自签 CN=127.0.0.1),`system:` 请求 → ORA-29019。
+> E-system 构造:`system:` 请求 `https://36.152.44.132/`(baidu 的 v4 IP),证书 CN=*.baidu.com≠IP,根由 system: 信任 → ORA-24263。(用 Cloudflare IP 会因 SNI 报 ORA-28860,不干净,故用 baidu。)
+
 ## 10. 参数行为详解(实测)
 
 ### 10.1 四个相关参数的元数据

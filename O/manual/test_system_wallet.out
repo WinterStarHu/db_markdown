@@ -138,3 +138,28 @@ VERIFY system: (switch ON) -> OK len=559
 --    The earlier claim that it is "the switch for system:" is retracted (see doc 10.4).
 
 
+===== Part 5: system: counterparts of scenarios B/C/D/E =====
+
+--- 5.B system: + valid public cert (example.com) ---
+B-system: example.com (baseline) -> OK len=559
+
+--- 5.C system: + TLS1.1-only server (self-signed, CN=127.0.0.1) ---
+C-system: TLS1.1 self-signed -> ERR -29273 ORA-29019: The protocol version is incorrect.
+   note: cert is untrusted (self-signed) yet error is ORA-29019 (version), not ORA-29024 (cert)
+         -> TLS version is negotiated BEFORE cert validation under system: too.
+
+--- 5.D system: + expired cert (already tested, archived) ---
+   clock -> 2049-01-01 (all 148 system roots past notAfter):
+   T1 system: example.com @2049 -> ERR -29273 ORA-29024: Certificate validation failure   (see Part 3.2)
+   (leaf also expired at 2049; isolating leaf-only expiry via system: not feasible with public certs)
+
+--- 5.E system: + hostname mismatch (public site via IP, root trusted via system:) ---
+E-system: baidu via IP (https://36.152.44.132/) -> ERR -29273 ORA-24263: remote server address on certificate and target address mismatch
+E-system: example via Cloudflare IP (https://172.66.147.243/) -> ERR -29273 ORA-28860: Fatal SSL error   (SNI/Cloudflare, inconclusive)
+
+-- 5 conclusion: system: gives the SAME error codes as file: for TLS-version(ORA-29019)/expiry(ORA-29024)/
+--    hostname(ORA-24263). Validation logic is shared (OpenSSL); only the trust source differs
+--    (OS CA bundle vs Oracle wallet).
+
+
+
