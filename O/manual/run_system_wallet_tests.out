@@ -21,7 +21,7 @@ PL/SQL procedure successfully completed.
 
 ===== S3. SET_WALLET('system:') -> public HTTPS hosts =====
 https://www.example.com/	   OK  len=559
-https://www.oracle.com/ 	   ERR -29273 ORA-29276: transfer timeout
+https://www.oracle.com/ 	   OK  len=1449
 https://api.github.com/ 	   OK  len=265
 https://www.cloudflare.com/	   OK  len=2000
 https://www.huawei.com/ 	   OK  len=2000
@@ -87,25 +87,26 @@ PL/SQL procedure successfully completed.
 ===== D-system: clock -> 2026-11-15 (leaf expired, root valid; expect ORA-29024) =====
 example.com leaf notAfter:
 notAfter=Oct 27 22:17:21 2026 GMT
-clock: Sun Nov 15 12:00:00 UTC 2026
+clock: Sun Nov 15 12:00:01 UTC 2026
 D-system: example.com @2026-11-15 -> ERR -29273 ORA-29024: Certificate
 validation failure
 
 PL/SQL procedure successfully completed.
 
 === restore clock (instant set back + NTP fine-sync) ===
-clock: Wed Sep 23 11:59:32 UTC 2026
+clock: Wed Sep 23 12:15:17 UTC 2026
 VERIFY system: (clock restored) -> OK len=559
 
 PL/SQL procedure successfully completed.
 
 ===== DONE =====
 
--- Notes (real-run variance, not errors):
---  * www.oracle.com sometimes hits ORA-29276 transfer timeout (slow CDN from CN);
---    re-run usually OK. Not a cert/validation issue.
---  * S7: scheme prefix is case-insensitive (SYSTEM:/System: both OK), but the
---    trailing colon is required (system without colon -> ORA-29248).
---  * S5: file: needs an Oracle wallet dir (ewallet.p12/cwallet.sso); pointing file:
---    at the OS PEM bundle dir OR a non-existent dir -> ORA-28759.
---  * S8: the wallet only matters for HTTPS; plain HTTP works regardless.
+-- Notes:
+--  * S3 all 8 public hosts OK this run (oracle.com sometimes times out from CN,
+--    ORA-29276, re-run usually OK; not a cert issue).
+--  * S7: scheme case-insensitive (SYSTEM:/System: OK), colon required (system -> ORA-29248).
+--  * S5: file: needs an Oracle wallet dir; OS PEM bundle dir / non-existent dir -> ORA-28759.
+--  * S8: wallet only matters for HTTPS; plain HTTP works regardless.
+--  * D-system: chronyd is STOPPED before the clock jump (else it re-syncs back to real
+--    time mid-test and the leaf-expiry failure doesn't reproduce); restored via date -s @epoch
+--    + chronyd restart afterwards.

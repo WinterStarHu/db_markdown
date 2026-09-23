@@ -195,8 +195,10 @@ trap restore_clock EXIT
 echo "example.com leaf notAfter:"
 echo | openssl s_client -connect www.example.com:443 -servername www.example.com 2>/dev/null \
   | openssl x509 -noout -enddate 2>/dev/null
+SUDO systemctl stop chronyd 2>/dev/null
 SUDO timedatectl set-ntp false
 SUDO timedatectl set-time "2026-11-15 12:00:00"
+sleep 1
 echo "clock: $(date -u)"
 $SP -S -L "/ as sysdba" <<'SQL'
 SET SERVEROUTPUT ON
