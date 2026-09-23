@@ -1,17 +1,14 @@
-$ bash clock_leaf_expiry.sh
-(VM: Oracle AI Database 26ai Free / OL8 ; DB 23.26.0.0.0 ; run as SYS ; 2026-09-23)
-
 === example.com leaf notAfter ===
 notAfter=Oct 27 22:17:21 2026 GMT
-
 === jump clock to 2026-11-15 12:00:00 (leaf expired, root still valid) ===
 clock: Sun Nov 15 12:00:00 UTC 2026
-D-system: example.com @clock-future -> ERR -29273 ORA-29024: Certificate validation failure
+D-system: example.com @clock-future -> ERR -29273 ORA-29024: Certificate
+validation failure
+
+PL/SQL procedure successfully completed.
 
 === restore clock (NTP re-sync) ===
-clock: Wed Sep 23 07:34:55 UTC 2026
+clock: Wed Sep 23 07:42:46 UTC 2026
 VERIFY system: (clock restored) -> OK len=559
 
--- conclusion: with the root still valid (trusted via system:) and ONLY the leaf expired,
--- system: rejects with ORA-29024 -> leaf expiry is enforced. This is the clean leaf-only
--- counterpart (the clock->2049 test had both root and leaf expired).
+PL/SQL procedure successfully completed.
