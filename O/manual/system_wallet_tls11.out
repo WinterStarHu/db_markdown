@@ -1,5 +1,0 @@
-LISTEN 0      128                *:8553             *:*
-C-system: TLS1.1 self-signed -> ERR -29273 ORA-29019: The protocol version is
-incorrect.
-
-PL/SQL procedure successfully completed.

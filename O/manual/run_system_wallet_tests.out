@@ -1,0 +1,74 @@
+$ bash run_system_wallet_tests.sh   # one self-contained script, stdout captured verbatim (no splicing)
+(VM: Oracle AI Database 26ai Free / OL8 ; DB 23.26.0.0.0 ; run as SYS ; 2026-09-23)
+
+===== S0. environment =====
+FREE / OPEN
+
+Oracle AI Database 26ai Free Release 23.26.0.0.0 - Develop, Learn, and
+
+wallet_root=(not set)
+
+===== S1. no wallet (expect ORA-29024) =====
+S1 no-wallet -> ERR -29273: ORA-29024: Certificate validation failure
+
+PL/SQL procedure successfully completed.
+
+===== S2. SET_WALLET('system') missing colon (expect ORA-29248) =====
+S2 system(no colon) -> ERR -29273: ORA-29248: an unrecognized WRL was used to
+open a wallet
+
+PL/SQL procedure successfully completed.
+
+===== S3. SET_WALLET('system:') -> public HTTPS hosts =====
+https://www.example.com/	   OK  len=559
+https://www.oracle.com/ 	   OK  len=1449
+https://api.github.com/ 	   OK  len=265
+https://www.cloudflare.com/	   OK  len=2000
+https://www.huawei.com/ 	   OK  len=2000
+https://www.baidu.com/		   OK  len=1778
+https://www.bing.com/		   OK  len=1752
+https://www.gov.cn/		   OK  len=1937
+
+PL/SQL procedure successfully completed.
+
+===== S4. system: + bogus password (expect OK -- password ignored) =====
+S4 system:+boguspw -> OK len=559
+
+PL/SQL procedure successfully completed.
+
+===== S6. system: + hostname mismatch (baidu via IP, expect ORA-24263) =====
+S6 system: baidu via IP -> ERR -29273 ORA-24263: remote server address on
+certificate and target address mismatch
+
+PL/SQL procedure successfully completed.
+
+===== C-system: TLS1.1-only self-signed (expect ORA-29019, version before cert) =====
+LISTEN 0      128                *:8553             *:*
+C-system: TLS1.1 self-signed -> ERR -29273 ORA-29019: The protocol version is
+incorrect.
+
+PL/SQL procedure successfully completed.
+
+===== F-system: self-signed valid cert, TLS1.2 (expect ORA-29024 unknown CA) =====
+LISTEN 0      128                *:8554             *:*
+F-system: self-signed TLS1.2 -> ERR -29273 ORA-29024: Certificate validation
+failure
+
+PL/SQL procedure successfully completed.
+
+===== D-system: clock -> 2026-11-15 (leaf expired, root valid; expect ORA-29024) =====
+example.com leaf notAfter:
+notAfter=Oct 27 22:17:21 2026 GMT
+clock: Sun Nov 15 12:00:00 UTC 2026
+D-system: example.com @2026-11-15 -> ERR -29273 ORA-29024: Certificate
+validation failure
+
+PL/SQL procedure successfully completed.
+
+=== restore clock (instant set back + NTP fine-sync) ===
+clock: Wed Sep 23 08:29:50 UTC 2026
+VERIFY system: (clock restored) -> OK len=559
+
+PL/SQL procedure successfully completed.
+
+===== DONE =====

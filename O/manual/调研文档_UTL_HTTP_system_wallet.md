@@ -15,12 +15,13 @@ Oracle 23ai 起,`UTL_HTTP` 做 HTTPS 请求时,钱包参数(信任的 CA 证书�
 2. 它信任哪些证书?是不是"什么都信"?
 3. **它实际从磁盘哪个路径加载 CA bundle?**(本文重点)
 
-伴随文件:
+伴随文件(本目录):
 
 | 文件 | 说明 |
 |---|---|
-| `test_system_wallet.sql` | 可复现的测试脚本(3 个场景) |
-| `test_system_wallet.out` | 实跑输出(原文) |
+| `run_system_wallet_tests.sh` | **一个自洽 sh**,跑全部 `system:` 场景(S0-S6 + C/D/F),无 DB 重启,stdout 即 `.out` |
+| `run_system_wallet_tests.out` | 上面实跑、逐字 stdout(非拼接)|
+| `parameter_behavior.md` | 参数(`ssl_wallet`/`_implicit_ssl_wallet`/`_allow_system_wallet`/`wallet_root`)行为备忘,独立于 system: 主线 |
 
 ---
 
@@ -171,7 +172,7 @@ pihtinit/pitcct: Failed to get _allow_system_wallet parameter value ...
 
 `ORA-28759(failure to open file)` 是 Oracle PKI 层"打开钱包/信任库文件失败"的错误。bundle 一被移走就报这个错、移回就好——**这是文件级实时证据**:`system:` 在请求时确实去 `open()` 了 `/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem`。路径由此钉死。
 
-> 实验探针里的 `nvl(length(s),'NULL')` 有类型不匹配 bug,会把成功路径显示成 ORA-06502,故 before/after 在探针输出里一度显示 `-6502`;但成功状态由独立运行的 `test_system_wallet.out`(len=559)佐证,moved-aside 的 `ORA-28759` 不受该 bug 影响,是干净证据。
+> 实验探针里的 `nvl(length(s),'NULL')` 有类型不匹配 bug,会把成功路径显示成 ORA-06502,故 before/after 在探针输出里一度显示 `-6502`;但成功状态由独立运行的 `run_system_wallet_tests.out`(len=559)佐证,moved-aside 的 `ORA-28759` 不受该 bug 影响,是干净证据。
 
 ### 关于 strace(未成功,但已被上面实验替代)
 
@@ -214,25 +215,23 @@ sudo tcpdump -i any -w /tmp/tls.pcap 'tcp port 443' &
 ## 7. 复现步骤
 
 ```bash
-# 1. 从主机进 VM
-ssh -p 2222 oracle@127.0.0.1        # 密码 oracle
-#    (非交互:用 SSH_ASKPASS 脚本 echo oracle + SSH_ASKPASS_REQUIRE=force)
+# 1. 从主机进 VM(密钥认证已配;或控制台直接登)
+ssh -p 2222 oracle@127.0.0.1
 
-# 2. 设环境
-export ORACLE_HOME=/opt/oracle/product/26ai/dbhomeFree
-export LD_LIBRARY_PATH=$ORACLE_HOME/lib
+# 2. 一个 sh 跑全部 system: 场景(自洽,无 DB 重启;stdout 即 .out)
+bash run_system_wallet_tests.sh
+bash run_system_wallet_tests.sh > run_system_wallet_tests.out   # 落盘
 
-# 3. 跑测试脚本(见同目录 test_system_wallet.sql)
-$ORACLE_HOME/bin/sqlplus -S "sys/oracle as sysdba" @test_system_wallet.sql
-#   DB 口令:sys/oracle ; SYS 免网络 ACL,无需 DBMS_NETWORK_ACL_ADMIN 授权
-#   Part 1(场景 1-3):只要公网通即可。
-#   Part 2(场景 A-G):先在同一 shell 跑 bash setup_tls_servers.sh 起 4 个 s_server,
-#                      再跑 sqlplus。结束后 pkill -f 'openssl s_server' 清理。
+# 说明:
+#   - SYS 免网络 ACL,无需 DBMS_NETWORK_ACL_ADMIN 授权
+#   - C-system/F-system 段用 openssl 起本地 s_server(脚本自起自清)
+#   - D-system 段临时把时钟快进到 2026-11-15 测叶子过期,trap + date -s @epoch 立即恢复
+#   - sudo 段脚本内 echo oracle | sudo -S 自动喂密码
 ```
 
 ## 8. 扩展测试:TLS 版本 / 证书 / 密码 边界场景
 
-针对 `system:` 与 `file:` 钱包在 TLS 层的边界行为,补了 7 个场景。场景 B-G 依赖一组本地 `openssl s_server`(用同目录 `setup_tls_servers.sh` 起好):8543 有效证书、8544 仅 TLS1.1、8545 过期证书、8546 主机名不匹配。自建 CA 导入 `wallet_tests` 钱包(B-E 用)。
+针对 `system:` 与 `file:` 钱包在 TLS 层的边界行为,做了 6 个场景(A-F)。`file:` 版用自建 CA + 本地 `openssl s_server`(一次性实验,脚本未留库);**`system:` 对应版见 §9.5 与 `run_system_wallet_tests.sh`,两版错误码一致**。
 
 | # | 场景 | 结果 | 错误码 / 说明 |
 |---|---|---|---|
@@ -242,14 +241,14 @@ $ORACLE_HOME/bin/sqlplus -S "sys/oracle as sysdba" @test_system_wallet.sql
 | D | `file:` + **过期**证书(2020-01 已过期) | ❌ | ORA-29024——CA 可信(B 同一 CA 成功),故失败原因只能是过期 |
 | E | `file:` + **主机名不匹配**(CN/SAN 不含 127.0.0.1) | ❌ | **ORA-24263 remote server address on certificate and target address mismatch**——专门的主机名校验错 |
 | F | `system:` + 自签证书 | ❌ | ORA-29024——未知 CA(system: 只信公共根) |
-| G | 会话级关 `_allow_system_wallet` | ⚠️ | ORA-02096:该隐藏参数**不可在 session 级修改**;G2 仍 OK(alter 失败没生效)。后用 `scope=spfile`+重启**真正关掉**(见 §10.4),system: 仍 OK——此开关并非 system: 总闸 |
 
 关键结论:
 - **密码对 `system:` 无意义**(场景 A):`UTL_HTTP.SET_WALLET('system:','任意值')` 照常工作,密码参数被忽略。
 - **TLS 版本与证书校验是两道独立关卡**:TLS 版本不匹配 → ORA-29019(握手期,先于证书校验);证书问题 → ORA-29024(校验期)。故 C 的错误码与 D/E/F 不同,可据此区分故障层。
 - **过期与未知 CA 都报 ORA-29024**(Oracle 在此路径不细分),区分需看上下文:若 CA 受信(B 成功)而仍失败 → 过期;若 CA 本就不在信任库 → 未知 CA。
 - **主机名不匹配有专门错误码 ORA-24263**,可直接定位。
-- **`_allow_system_wallet` 不是 system: 总开关**(纠正):`scope=spfile`+重启真正置 FALSE 后,显式 `SET_WALLET('system:')` 仍正常工作(见 §10.4)。它被 HTTP 初始化层读取,但管的是另一条"系统钱包"路径,不门控 `system:` 字面量。
+
+> 参数(`_allow_system_wallet` / `_implicit_ssl_wallet` / `ssl_wallet` / `wallet_root`)的行为见独立文件 `parameter_behavior.md`,不在本 system: 主线内。
 
 ## 9. 进阶实验:系统根过期 & 根/叶子过期的区分
 
@@ -300,89 +299,34 @@ B/C/D/E 最初是 `file:` 钱包测的。下面补 `system:`(OS 信任库)版本
 |---|---|---|---|---|
 | B | 有效证书 TLS1.2 | OK | OK(example.com 559) | system: 对公网有效证书放行 |
 | C | 仅 TLS1.1 | ORA-29019 | **ORA-29019**(自签 TLS1.1 服务器) | system: 同样拒 TLS1.1;**版本校验先于证书校验**——自签证书本会触发 ORA-29024,但握手在版本协商阶段就失败,故报 ORA-29019 |
-| D | 过期证书 | ORA-29024 | **ORA-29024**(clock→2049,系统根全过期,见 §9.2) | 已归档;叶子单过期经 system: 难干净隔离(公网叶子总比根先过期,无公共 CA 私钥) |
+| D | 过期证书 | ORA-29024 | **ORA-29024**(clock→2026-11-15,叶子过期、根仍有效,见 `run_system_wallet_tests.sh` D 段) | 纯叶子过期、根由 system: 信任 → 失败(另:clock→2049 系统根全过期也 ORA-29024,见 §9.2) |
 | E | 主机名不匹配 | ORA-24263 | **ORA-24263**(baidu 用 IP 访问,根由 system: 信任) | 根受信、仅 CN≠IP → 主机名校验失败,与 file: 同码 |
 
 **结论**:`system:` 在 TLS 版本(ORA-29019)、过期(ORA-29024)、主机名(ORA-24263)上的错误码与 `file:` 完全一致——校验逻辑同源(底层都是 OpenSSL),区别只在信任库来源(OS bundle vs Oracle 钱包)。
 > C-system 构造:本机 `openssl s_server -tls1_1 -cipher 'DEFAULT:@SECLEVEL=0'`(自签 CN=127.0.0.1),`system:` 请求 → ORA-29019。
 > E-system 构造:`system:` 请求 `https://36.152.44.132/`(baidu 的 v4 IP),证书 CN=*.baidu.com≠IP,根由 system: 信任 → ORA-24263。(用 Cloudflare IP 会因 SNI 报 ORA-28860,不干净,故用 baidu。)
 
-## 10. 参数行为详解(实测)
+## 10. `system:` 固化脚本
 
-### 10.1 四个相关参数的元数据
-```
-ssl_wallet            = (null)  -- ssl_wallet                                   [CDB 级,动态可改 scope=both;PDB 内改报 ORA-65040]
-wallet_root           = (null)  -- wallet root instance initialization parameter [不可动态改,ORA-02095;只能 spfile+重启]
-_implicit_ssl_wallet  = TRUE    -- Implicitly use SSL Wallet for UTL_HTTP request
-_allow_system_wallet  = TRUE    -- Allow Usage of SYSTEM Wallet Path for Outbound Communication
-```
+一个自洽 sh,串起全部 `system:` 场景,**无 DB 重启**(参数已摘出),一个 sh 一步到位:
 
-### 10.2 可改性
-| 参数 | session 改 | system 改 | 实测 |
-|---|---|---|---|
-| `ssl_wallet` | ❌ | ✅(CDB$ROOT,scope=both)| PDB 内 `alter system set` → ORA-65040;切到 CDB$ROOT(`sys/oracle@localhost:1521/FREE as sysdba`)**scope=both 成功** |
-| `wallet_root` | ❌ | ❌(动态)| `alter system set ... scope=both` → **ORA-02095**(只能 spfile+重启)|
-| `_allow_system_wallet` | ❌(ORA-02096)| ✅ spfile | session 改报 ORA-02096;`scope=spfile` + 重启后生效(实测 param=FALSE 已确认)|
-| `_implicit_ssl_wallet` | 未测改 | — | 仅静态取值 TRUE |
+| 文件 | 内容 | 前置条件 |
+|---|---|---|
+| `run_system_wallet_tests.sh` | S0 环境 / S1 无钱包→ORA-29024 / S2 漏冒号→ORA-29248 / S3 公网 8 站点 / S4 错密码→OK(忽略) / S6 baidu 用 IP→ORA-24263 / C-system TLS1.1→ORA-29019 / D-system 时钟叶子过期→ORA-29024 | openssl + sudo(仅时钟段) |
+| `run_system_wallet_tests.out` | 上面实跑、stdout 逐字落盘(非拼接) | |
 
-### 10.3 `ssl_wallet` + `_implicit_ssl_wallet` 行为
-在 CDB$ROOT 设 `ssl_wallet=file:/home/oracle/wallet_http`(钱包里有 example.com 的 CA 链),`_implicit_ssl_wallet=TRUE` 保持默认:
-```
-I1 无 SET_WALLET(隐式用 ssl_wallet?)-> ERR -29273 ORA-29024   ← 没有自动套用
-I2 SET_WALLET('system:')            -> OK  len=559            ← system: 不受 ssl_wallet 影响
-```
-再把 `_implicit_ssl_wallet` 置 FALSE(spfile+重启,确认 param=FALSE),`ssl_wallet` 仍设着,矩阵:
-```
-M1 无 SET_WALLET (_implicit=FALSE, ssl_wallet set) -> ERR -29273 ORA-29024   ← 与 TRUE 时一样
-M2 system: (_implicit=FALSE)                       -> OK len=559
-M3 file:    (_implicit=FALSE)                      -> OK len=559
-```
-**结论**:无论 `_implicit_ssl_wallet` TRUE 还是 FALSE,**UTL_HTTP 都不会自动拿 `ssl_wallet` 当 HTTPS 信任库**(M1/I1 均 ORA-29024);该参数在本配置对 UTL_HTTP 无可观察效果。要验证 HTTPS 仍须显式 `SET_WALLET`。`system:` 与 `ssl_wallet` 相互独立。
-> 附:`ssl_wallet` 参数对 `file:` 前缀不识别——设 `file:/home/oracle/wallet_http` 被规范化成 `$ORACLE_HOME/dbs/file:/home/oracle/wallet_http`(当成相对路径)。`ssl_wallet` 应填纯目录路径。测试后已 `reset` 清干净。
-
-### 10.4 `_allow_system_wallet=FALSE`(spfile + 重启,实测)
-纠正前文假设:此开关 **并不是** `system:` 的总闸。
-```
-spfile: alter system set "_allow_system_wallet"=false scope=spfile  -> OK
-shutdown immediate; startup;
-确认: _allow_system_wallet=FALSE, status=OPEN
-T1 SET_WALLET('system:') -> OK len=559   ← 开关关掉,system: 照样能用!
-T2 SET_WALLET('file:...')  -> OK len=559   ← file: 不受影响(预期)
-恢复: alter system set "_allow_system_wallet"=true scope=spfile + 重启 -> VERIFY system: OK
-```
-**结论**:`_allow_system_wallet=FALSE` **不会**禁用显式 `UTL_HTTP.SET_WALLET('system:')`。该参数虽被 HTTP 初始化层读取(二进制有 `pihtinit: Failed to get _allow_system_wallet parameter value` 字样),但在本配置下对 UTL_HTTP 显式 `system:` 无可观察影响——它大概管的是另一条"系统钱包"代码路径(如隐式/默认出站),而非 `system:` 字面量。**前文"它是 system: 总开关"的说法作废,以此实测为准。**
-
-### 10.5 连接/启动要点(本 appliance 坑)
-`.bashrc` 设了 `export TWO_TASK=freepdb1`,导致 `sys/oracle as sysdba`(不带 @)也走 listener→service `freepdb1`;**实例一旦关闭,listener 端口连不上(ORA-12514 / ORA-01017)**。要对 down 的实例做 STARTUP,须:
 ```bash
-unset TWO_TASK
-export ORACLE_SID=FREE              # 注意 oratab 是 FREE(大写),.bashrc 里小写 free 也能跑
-sqlplus / as sysdba                  # bequeath OS 认证(本机 OS 认证可用,只是被 TWO_TASK 屏蔽了)
-> STARTUP
+# 跑法(VM 内 oracle 用户):
+bash run_system_wallet_tests.sh                                # 直接看 stdout
+bash run_system_wallet_tests.sh > run_system_wallet_tests.out   # 落盘(stdout-only,不含作业控制噪声)
 ```
-即 OS 认证 `/ as sysdba` 本身是好的,平时"失败"是 TWO_TASK 把它拐去了 listener。
 
-## 11. `system:` 固化脚本清单
+> 场景分三段:S0-S6(公网,即时)、C-system(自签 TLS1.1 s_server,起后即测后清)、D-system(时钟跳叶子过期、trap 恢复)。时钟段需 sudo,脚本内 `echo oracle \| sudo -S` 自动喂密码。
+> 参数(`ssl_wallet` / `_implicit_ssl_wallet` / `_allow_system_wallet` / `wallet_root`)的行为见独立文件 `parameter_behavior.md`,不在本 system: 主线内。
 
-以下脚本按"自签需要的给 sh、纯 SQL 的给 sql、时钟过期的给 sh+sql 一对"拆分:
-
-| 文件 | 类型 | 内容 | 前置条件 |
-|---|---|---|---|
-| `system_wallet_basic.sql` | 纯 SQL | S0 环境 / S1 无钱包→ORA-29024 / S2 漏冒号→ORA-29248 / S3 公网 8 站点 / S4 错密码→OK(忽略) / S6 baidu 用 IP→ORA-24263 | 公网通 |
-| `system_wallet_basic.out` | 输出 | 上面实跑结果 | |
-| `system_wallet_tls11.sh` | 自签 sh | 自签证书 + 起 TLS1.1 s_server + 跑 C-system 测试 + 清理 | openssl |
-| `system_wallet_tls11.out` | 输出 | C-system → ORA-29019(版本先于证书) | |
-| `clock_leaf_expiry.sh` | 时钟 sh | 时钟跳到叶子过期/根有效,跑 sql,trap 恢复 | sudo |
-| `clock_leaf_expiry.sql` | SQL | D-system 叶子过期请求(example.com) | 被 sh 调用 |
-| `clock_leaf_expiry.out` | 输出 | D-system → ORA-29024(纯叶子过期) | |
-
-> 参数相关的测试(ssl_wallet / _implicit_ssl_wallet / _allow_system_wallet / wallet_root)不单列脚本,见 §10。
-> 综合主脚本(含 file: 钱包场景 A-G)`test_system_wallet.sql` / `.out` 仍在同目录。
-
-## 12. 备注 / 已知坑
+## 11. 备注 / 已知坑
 
 - **`system` 必须带冒号**,写成 `system` 报 ORA-29248。
-- **`_allow_system_wallet`(默认 TRUE)并非 `system:` 总开关**:实测置 FALSE + 重启后 `system:` 仍可用(§10.4)。它非 session 可调(ORA-02096),可经 `ALTER SYSTEM ... scope=spfile` + 重启修改。
 - `UTL_HTTP.REQUEST` 只取前 2000 字节;大页面用 `BEGIN_REQUEST` + `GET_RESPONSE` + `READ_TEXT` 循环读全。
 - 非 SYS 用户调用 UTL_HTTP 需走网络 ACL(`DBMS_NETWORK_ACL_ADMIN`),23ai 的 `APPEND_HOST_ACE` 签名与旧文档不同;SYS 豁免,故本脚本无需授权。
 - 本 VM 改过网络(bridged→NAT+host-only);若日后恢复桥接,主机访问改回 VM 的局域网 IP。
