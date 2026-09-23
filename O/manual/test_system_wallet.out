@@ -97,3 +97,32 @@ I2 leaf(valid)->validRoot(no intermed)   -> OK len=2000
 --    possible via system: with real public certs (leafs expire before roots; no public CA key).
 --    See doc section 9 for the full analysis.
 
+
+===== Part 4: parameter behavior (captured) =====
+
+--- 4.0 metadata ---
+ssl_wallet           = (null)  -- ssl_wallet
+wallet_root          = (null)  -- wallet root instance initialization parameter
+_implicit_ssl_wallet = TRUE    -- Implicitly use SSL Wallet for UTL_HTTP request
+_allow_system_wallet = TRUE     -- Allow Usage of SYSTEM Wallet Path for Outbound Communication
+
+--- 4.1 ssl_wallet (set at CDB$ROOT, scope=both) + _implicit_ssl_wallet=TRUE ---
+set ssl_wallet=both (CDB$ROOT) -> OK ; ssl_wallet now = file:/home/oracle/wallet_http
+I1 no SET_WALLET (implicit ssl_wallet) -> ERR -29273 ORA-29024: Certificate validation failure
+I2 system: (ssl_wallet also set)        -> OK len=559
+reset ssl_wallet -> OK ; final ssl_wallet=(null)
+
+--- 4.2 _allow_system_wallet=FALSE (spfile + restart) ---
+before: _allow_system_wallet=TRUE
+set false spfile -> OK ; SHUTDOWN IMMEDIATE
+STARTUP -> _allow_system_wallet=FALSE, status=OPEN
+T1 system: (switch OFF) -> OK len=559     <-- switch OFF does NOT disable explicit system:
+T2 file:   (switch OFF) -> OK len=559
+restore: alter system set "_allow_system_wallet"=true scope=spfile -> OK ; restart
+final _allow_system_wallet=TRUE, status=OPEN
+VERIFY system: (switch ON) -> OK len=559
+
+-- 4.2 conclusion: _allow_system_wallet=FALSE does NOT disable UTL_HTTP.SET_WALLET('system:').
+--    The earlier claim that it is "the switch for system:" is retracted (see doc 10.4).
+
+

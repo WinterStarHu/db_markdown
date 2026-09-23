@@ -242,14 +242,14 @@ $ORACLE_HOME/bin/sqlplus -S "sys/oracle as sysdba" @test_system_wallet.sql
 | D | `file:` + **过期**证书(2020-01 已过期) | ❌ | ORA-29024——CA 可信(B 同一 CA 成功),故失败原因只能是过期 |
 | E | `file:` + **主机名不匹配**(CN/SAN 不含 127.0.0.1) | ❌ | **ORA-24263 remote server address on certificate and target address mismatch**——专门的主机名校验错 |
 | F | `system:` + 自签证书 | ❌ | ORA-29024——未知 CA(system: 只信公共根) |
-| G | 会话级关 `_allow_system_wallet` | ⚠️ | ORA-02096:该隐藏参数**不可在 session 级修改**;G2 仍 OK(alter 失败没生效)。要真正验证开关需 `ALTER SYSTEM ... scope=spfile` + 重启实例,本次为避免打扰 DB 未做 |
+| G | 会话级关 `_allow_system_wallet` | ⚠️ | ORA-02096:该隐藏参数**不可在 session 级修改**;G2 仍 OK(alter 失败没生效)。后用 `scope=spfile`+重启**真正关掉**(见 §10.4),system: 仍 OK——此开关并非 system: 总闸 |
 
 关键结论:
 - **密码对 `system:` 无意义**(场景 A):`UTL_HTTP.SET_WALLET('system:','任意值')` 照常工作,密码参数被忽略。
 - **TLS 版本与证书校验是两道独立关卡**:TLS 版本不匹配 → ORA-29019(握手期,先于证书校验);证书问题 → ORA-29024(校验期)。故 C 的错误码与 D/E/F 不同,可据此区分故障层。
 - **过期与未知 CA 都报 ORA-29024**(Oracle 在此路径不细分),区分需看上下文:若 CA 受信(B 成功)而仍失败 → 过期;若 CA 本就不在信任库 → 未知 CA。
 - **主机名不匹配有专门错误码 ORA-24263**,可直接定位。
-- **`_allow_system_wallet` 是 system: 的总开关**,但非 session 可调;实锤其作用需 spfile+重启。
+- **`_allow_system_wallet` 不是 system: 总开关**(纠正):`scope=spfile`+重启真正置 FALSE 后,显式 `SET_WALLET('system:')` 仍正常工作(见 §10.4)。它被 HTTP 初始化层读取,但管的是另一条"系统钱包"路径,不门控 `system:` 字面量。
 
 ## 9. 进阶实验:系统根过期 & 根/叶子过期的区分
 
@@ -293,10 +293,58 @@ I2 leaf(有效)->validRoot(无中间)        -> OK len=2000
 ```
 结论:链中**非锚节点**(叶子、中间)的过期被强制校验;根(锚)过期能否被校验,经 `system:` 无法用真实证书单独证明(见 9.3)。
 
-## 10. 备注 / 已知坑
+## 10. 参数行为详解(实测)
+
+### 10.1 四个相关参数的元数据
+```
+ssl_wallet            = (null)  -- ssl_wallet                                   [CDB 级,动态可改 scope=both;PDB 内改报 ORA-65040]
+wallet_root           = (null)  -- wallet root instance initialization parameter [不可动态改,ORA-02095;只能 spfile+重启]
+_implicit_ssl_wallet  = TRUE    -- Implicitly use SSL Wallet for UTL_HTTP request
+_allow_system_wallet  = TRUE    -- Allow Usage of SYSTEM Wallet Path for Outbound Communication
+```
+
+### 10.2 可改性
+| 参数 | session 改 | system 改 | 实测 |
+|---|---|---|---|
+| `ssl_wallet` | ❌ | ✅(CDB$ROOT,scope=both)| PDB 内 `alter system set` → ORA-65040;切到 CDB$ROOT(`sys/oracle@localhost:1521/FREE as sysdba`)**scope=both 成功** |
+| `wallet_root` | ❌ | ❌(动态)| `alter system set ... scope=both` → **ORA-02095**(只能 spfile+重启)|
+| `_allow_system_wallet` | ❌(ORA-02096)| ✅ spfile | session 改报 ORA-02096;`scope=spfile` + 重启后生效(实测 param=FALSE 已确认)|
+| `_implicit_ssl_wallet` | 未测改 | — | 仅静态取值 TRUE |
+
+### 10.3 `ssl_wallet` + `_implicit_ssl_wallet` 行为
+在 CDB$ROOT 设 `ssl_wallet=file:/home/oracle/wallet_http`(钱包里有 example.com 的 CA 链),`_implicit_ssl_wallet=TRUE` 保持默认:
+```
+I1 无 SET_WALLET(隐式用 ssl_wallet?)-> ERR -29273 ORA-29024   ← 没有自动套用
+I2 SET_WALLET('system:')            -> OK  len=559            ← system: 不受 ssl_wallet 影响
+```
+**结论**:`ssl_wallet` 设了,**UTL_HTTP 也不会隐式拿它当信任库**(`_implicit_ssl_wallet=TRUE` 在此场景未见自动套用);要验证 HTTPS 仍须显式 `SET_WALLET`。`system:` 与 `ssl_wallet` 相互独立。
+
+### 10.4 `_allow_system_wallet=FALSE`(spfile + 重启,实测)
+纠正前文假设:此开关 **并不是** `system:` 的总闸。
+```
+spfile: alter system set "_allow_system_wallet"=false scope=spfile  -> OK
+shutdown immediate; startup;
+确认: _allow_system_wallet=FALSE, status=OPEN
+T1 SET_WALLET('system:') -> OK len=559   ← 开关关掉,system: 照样能用!
+T2 SET_WALLET('file:...')  -> OK len=559   ← file: 不受影响(预期)
+恢复: alter system set "_allow_system_wallet"=true scope=spfile + 重启 -> VERIFY system: OK
+```
+**结论**:`_allow_system_wallet=FALSE` **不会**禁用显式 `UTL_HTTP.SET_WALLET('system:')`。该参数虽被 HTTP 初始化层读取(二进制有 `pihtinit: Failed to get _allow_system_wallet parameter value` 字样),但在本配置下对 UTL_HTTP 显式 `system:` 无可观察影响——它大概管的是另一条"系统钱包"代码路径(如隐式/默认出站),而非 `system:` 字面量。**前文"它是 system: 总开关"的说法作废,以此实测为准。**
+
+### 10.5 连接/启动要点(本 appliance 坑)
+`.bashrc` 设了 `export TWO_TASK=freepdb1`,导致 `sys/oracle as sysdba`(不带 @)也走 listener→service `freepdb1`;**实例一旦关闭,listener 端口连不上(ORA-12514 / ORA-01017)**。要对 down 的实例做 STARTUP,须:
+```bash
+unset TWO_TASK
+export ORACLE_SID=FREE              # 注意 oratab 是 FREE(大写),.bashrc 里小写 free 也能跑
+sqlplus / as sysdba                  # bequeath OS 认证(本机 OS 认证可用,只是被 TWO_TASK 屏蔽了)
+> STARTUP
+```
+即 OS 认证 `/ as sysdba` 本身是好的,平时"失败"是 TWO_TASK 把它拐去了 listener。
+
+## 11. 备注 / 已知坑
 
 - **`system` 必须带冒号**,写成 `system` 报 ORA-29248。
-- 开关 `_allow_system_wallet`(默认 `TRUE`)若被设为 `FALSE`,`system:` 会失效;但该参数非 session 可调(ORA-02096),改需 `ALTER SYSTEM ... scope=spfile` 并重启。
+- **`_allow_system_wallet`(默认 TRUE)并非 `system:` 总开关**:实测置 FALSE + 重启后 `system:` 仍可用(§10.4)。它非 session 可调(ORA-02096),可经 `ALTER SYSTEM ... scope=spfile` + 重启修改。
 - `UTL_HTTP.REQUEST` 只取前 2000 字节;大页面用 `BEGIN_REQUEST` + `GET_RESPONSE` + `READ_TEXT` 循环读全。
 - 非 SYS 用户调用 UTL_HTTP 需走网络 ACL(`DBMS_NETWORK_ACL_ADMIN`),23ai 的 `APPEND_HOST_ACE` 签名与旧文档不同;SYS 豁免,故本脚本无需授权。
 - 本 VM 改过网络(bridged→NAT+host-only);若日后恢复桥接,主机访问改回 VM 的局域网 IP。
