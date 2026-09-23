@@ -1,0 +1,99 @@
+$ sqlplus -S "sys/oracle as sysdba" @test_system_wallet.sql
+(VM: Oracle AI Database 26ai Free / Oracle Linux 8 ; DB: 23.26.0.0.0 ; run as SYS ; 2026-09-23)
+Part 2 (A-G) run after: bash setup_tls_servers.sh  (openssl s_server on 8543/8544/8545/8546)
+
+===== 0. environment =====
+
+INFO
+-------------------------------
+FREE / OPEN
+
+VER
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Oracle AI Database 26ai Free Release 23.26.0.0.0 - Develop, Learn, and
+
+P
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+wallet_root=(not set)
+
+===== 1. WITHOUT wallet (expect ORA-29273 / ORA-29024) =====
+NO_WALLET -> ERR -29273: ORA-29024: Certificate validation failure
+
+===== 2. SET_WALLET('system') missing colon (expect ORA-29248) =====
+system(no colon) -> ERR -29273: ORA-29248: an unrecognized WRL was used to open a wallet
+
+===== 3. SET_WALLET('system:') -> public HTTPS hosts (system CA bundle) =====
+https://www.example.com/	   OK  len=559
+https://www.oracle.com/ 	   OK  len=1449
+https://api.github.com/ 	   OK  len=265
+https://www.cloudflare.com/	   OK  len=2000
+https://www.microsoft.com/	   OK  len=2000
+https://www.baidu.com/		   OK  len=1778
+https://www.bing.com/		   OK  len=
+https://www.gov.cn/		   OK  len=1937
+
+===== A. system: + bogus password (expect OK -- password ignored) =====
+A system:+boguspw  example.com -> OK len=559
+
+===== B. file wallet + valid cert, TLS1.2 (expect OK) =====
+B file: valid TLS1.2  -> OK len=2000
+
+===== C. file wallet + TLS1.1-only server (expect ORA-29019 protocol version) =====
+C file: TLS1.1-only  -> ERR -29273 ORA-29019: The protocol version is incorrect.
+
+===== D. file wallet + expired server cert (expect ORA-29024 validation failure) =====
+D file: expired cert -> ERR -29273 ORA-29024: Certificate validation failure
+
+===== E. file wallet + hostname mismatch (expect ORA-24263 address mismatch) =====
+E file: hostname mis -> ERR -29273 ORA-24263: remote server address on certificate and target address mismatch
+
+===== F. system: + self-signed cert (expect ORA-29024 unknown CA) =====
+F system: self-signed -> ERR -29273 ORA-29024: Certificate validation failure
+
+===== G. toggle _allow_system_wallet (session-level -- expect ORA-02096) =====
+G1 alter session -> ERR -2096 ORA-02096: specified initialization parameter is not modifiable with this option
+G2 system: after toggle attempt -> OK len=559
+
+-- Notes:
+--  * len<=2000 because UTL_HTTP.REQUEST returns only the first 2000 bytes of the body.
+--  * www.bing.com sometimes shows an empty body (gzip first chunk decodes empty); not a cert issue.
+--  * Scenario A: the bogus password is silently ignored -- system: has no password to check.
+--  * Scenario C: ORA-29019 "protocol version is incorrect" is distinct from the cert errors (ORA-29024),
+--    confirming Oracle 23ai refuses to negotiate TLS1.1 (min TLS = 1.2).
+--  * Scenario D: ORA-29024 is the generic cert-validation code; here the CA IS trusted (scenario B with the
+--    same CA succeeded), so the only remaining reason is the expired notAfter (2020-01-01..2020-02-01).
+--  * Scenario E: ORA-24263 is the specific hostname-mismatch error (cert CN/SAN lacks 127.0.0.1).
+--  * Scenario G: _allow_system_wallet is NOT modifiable at session level (ORA-02096). Toggling it for real
+--    needs ALTER SYSTEM ... scope=spfile + DB restart; not done here to avoid disrupting the instance.
+
+
+===== Part 3: advanced experiments (captured output; shell-driven, not pure SQL) =====
+
+--- 3.1 OS CA bundle: already-expired roots ---
+ca-certificates-2024.2.69_v8.0.303-80.0.el8_10.noarch
+EXPIRED: subject=C = IE, O = Baltimore, OU = CyberTrust, CN = Baltimore CyberTrust Root notAfter=May 12 23:59:00 2025 GMT
+=== SUMMARY: total roots=148  already_expired=1 ===
+expiring within 1 year = 3:
+   Baltimore CyberTrust Root                  notAfter=2025-05 (already expired)
+   Entrust Root Certification Authority       notAfter=2026-11
+   Certigna                                    notAfter=2027-06
+
+--- 3.2 clock -> 2049-01-01 (all 148 system roots past notAfter) ---
+clock now: 2049-01-01 12:00:00
+T1 system: example.com @2049 -> ERR -29273 ORA-29024: Certificate validation failure
+=== restore clock (set-ntp true -> re-sync) ===
+clock now: 2026-09-23 06:21:57
+STATUS    (v$instance) -> OPEN
+RESTORE system: -> OK len=559
+
+--- 3.3 intermediate-cert expiry (file: wallet, /tmp/exproot certs) ---
+expiredanchor (intermediate): subject=CN = Expired Anchor CA  notBefore=Jan 1 2019  notAfter=Jan 1 2020
+chain = leaf(valid) -> expiredanchor(EXPIRED intermed) -> tempca(valid root, trusted)
+I1 leaf(valid)->expiredINTERMED->validRoot -> ERR -29273 ORA-29024: Certificate validation failure
+I2 leaf(valid)->validRoot(no intermed)   -> OK len=2000
+
+-- 3.2 caveat: at clock=2049 the public leaf (1-year validity) is ALSO expired, so the ORA-29024 there
+--    cannot be cleanly attributed to root expiry alone. Isolating "expired ROOT + valid leaf" is not
+--    possible via system: with real public certs (leafs expire before roots; no public CA key).
+--    See doc section 9 for the full analysis.
+

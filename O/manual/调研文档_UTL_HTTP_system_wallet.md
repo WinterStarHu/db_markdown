@@ -225,12 +225,78 @@ export LD_LIBRARY_PATH=$ORACLE_HOME/lib
 # 3. 跑测试脚本(见同目录 test_system_wallet.sql)
 $ORACLE_HOME/bin/sqlplus -S "sys/oracle as sysdba" @test_system_wallet.sql
 #   DB 口令:sys/oracle ; SYS 免网络 ACL,无需 DBMS_NETWORK_ACL_ADMIN 授权
+#   Part 1(场景 1-3):只要公网通即可。
+#   Part 2(场景 A-G):先在同一 shell 跑 bash setup_tls_servers.sh 起 4 个 s_server,
+#                      再跑 sqlplus。结束后 pkill -f 'openssl s_server' 清理。
 ```
 
-## 8. 备注 / 已知坑
+## 8. 扩展测试:TLS 版本 / 证书 / 密码 边界场景
+
+针对 `system:` 与 `file:` 钱包在 TLS 层的边界行为,补了 7 个场景。场景 B-G 依赖一组本地 `openssl s_server`(用同目录 `setup_tls_servers.sh` 起好):8543 有效证书、8544 仅 TLS1.1、8545 过期证书、8546 主机名不匹配。自建 CA 导入 `wallet_tests` 钱包(B-E 用)。
+
+| # | 场景 | 结果 | 错误码 / 说明 |
+|---|---|---|---|
+| A | `system:` + 错误 password | ✅ OK(559) | 密码被**静默忽略**——`system:` 无密码可校验,传啥都不影响 |
+| B | `file:wallet_tests` + 有效证书(TLS1.2) | ✅ OK(2000) | 基线:CA 受信、证书有效、主机名匹配 |
+| C | `file:` + **仅 TLS1.1** 服务端 | ❌ | **ORA-29019 The protocol version is incorrect**——协议版本错,与证书错误(ORA-29024)区分开;证明 23ai 拒绝 TLS1.1,最低 TLS=1.2 |
+| D | `file:` + **过期**证书(2020-01 已过期) | ❌ | ORA-29024——CA 可信(B 同一 CA 成功),故失败原因只能是过期 |
+| E | `file:` + **主机名不匹配**(CN/SAN 不含 127.0.0.1) | ❌ | **ORA-24263 remote server address on certificate and target address mismatch**——专门的主机名校验错 |
+| F | `system:` + 自签证书 | ❌ | ORA-29024——未知 CA(system: 只信公共根) |
+| G | 会话级关 `_allow_system_wallet` | ⚠️ | ORA-02096:该隐藏参数**不可在 session 级修改**;G2 仍 OK(alter 失败没生效)。要真正验证开关需 `ALTER SYSTEM ... scope=spfile` + 重启实例,本次为避免打扰 DB 未做 |
+
+关键结论:
+- **密码对 `system:` 无意义**(场景 A):`UTL_HTTP.SET_WALLET('system:','任意值')` 照常工作,密码参数被忽略。
+- **TLS 版本与证书校验是两道独立关卡**:TLS 版本不匹配 → ORA-29019(握手期,先于证书校验);证书问题 → ORA-29024(校验期)。故 C 的错误码与 D/E/F 不同,可据此区分故障层。
+- **过期与未知 CA 都报 ORA-29024**(Oracle 在此路径不细分),区分需看上下文:若 CA 受信(B 成功)而仍失败 → 过期;若 CA 本就不在信任库 → 未知 CA。
+- **主机名不匹配有专门错误码 ORA-24263**,可直接定位。
+- **`_allow_system_wallet` 是 system: 的总开关**,但非 session 可调;实锤其作用需 spfile+重启。
+
+## 9. 进阶实验:系统根过期 & 根/叶子过期的区分
+
+### 9.1 系统 bundle 里已有的过期根
+检查 `/etc/pki/tls/certs/ca-bundle.crt`(148 个根),发现 **1 个已过期**:
+```
+EXPIRED: subject=CN = Baltimore CyberTrust Root  notAfter=May 12 23:59:00 2025 GMT
+=== SUMMARY: total roots=148  already_expired=1 ===
+expiring_within_1y = 3  (Baltimore[已过期]、Entrust Root CA[2026-11]、Certigna[2027-06])
+```
+`ca-certificates` 包为 `2024.2.69`(2024-08 构建),滞后于 Baltimore 的 2025-05 过期时间,故过期根未被清理。
+**平时不影响 `system:`**:公网站点叶子链到的是仍有效的根;且多路径校验会走有效路径。
+
+### 9.2 把系统根全部置于过期(clock → 2049)
+最远根 `notAfter=2048-03-27`(Telekom Security)。把 VM 时钟快进到 `2049-01-01`,则 148 根全部"过期"。
+```bash
+sudo timedatectl set-ntp false
+sudo timedatectl set-time "2049-01-01 12:00:00"
+# 触发: utl_http.set_wallet('system:'); utl_http.request('https://www.example.com/')
+```
+结果:`system:` → **ORA-29024 Certificate validation failure**(失败)。恢复时钟(set-ntp true 重同步)后 system: 恢复 OK(559),DB 状态 OPEN 未受影响。
+**科学性瑕疵**:2049 时 example.com 的**叶子**(1 年期)也过期了,故该失败混了叶子过期的成分,不能单归因于根。
+
+### 9.3 根/叶子过期——能否单独证明"根过期"
+| 层 | 过期 | 是否被校验 | 证据 |
+|---|---|---|---|
+| 叶子(leaf) | 过期 | ❌ 失败 ORA-29024 | 场景 D |
+| 中间(intermediate) | 过期 | ❌ 失败 ORA-29024 | 9.4 I1 |
+| 根(锚,trust anchor) | 过期 | 经 `system:` 无法单独证明;整包过期会失败(但叶子同时过期) | 9.2 clock→2049 |
+
+- **叶子过期 → 必失败**(场景 D:有效 CA + 过期叶子 → ORA-29024)。
+- **中间证书过期 → 必失败**(I1:叶子有效 → 过期中间 → 有效根,仍 ORA-29024)。
+- **根(锚)过期**:经 `system:` 用真实公网证书**无法干净隔离**——公网叶子 ~1 年期,根有效期到 2030s~2048,叶子永远比根先过期,不存在"叶子有效而其根已过期"的真实公网站点;且无公共 CA 私钥,签不出"被公共过期根签的有效叶子"。唯一能干净构造"根过期 + 叶子有效"的途径是 `file:` 钱包 + 自建过期自签根(需 faketime 或时钟快进铸根),**不走 system:**。
+
+### 9.4 I1/I2 中间证书过期实验(走 `file:`,复用 /tmp/exproot 既有证书)
+构造:tempca(有效自签根)+ expiredanchor(被 tempca 签、`notAfter=2020`,即过期中间)+ leaf_exp(被 expiredanchor 签、有效叶子)。钱包只信 tempca;服务端 `s_server -cert leaf_exp -cert_chain expiredanchor`。
+链 = `leaf(有效) → expiredanchor(过期中间) → tempca(有效根,受信)`。
+```
+I1 leaf(有效)->expiredINTERMED->validRoot -> ERR -29273 ORA-29024: Certificate validation failure
+I2 leaf(有效)->validRoot(无中间)        -> OK len=2000
+```
+结论:链中**非锚节点**(叶子、中间)的过期被强制校验;根(锚)过期能否被校验,经 `system:` 无法用真实证书单独证明(见 9.3)。
+
+## 10. 备注 / 已知坑
 
 - **`system` 必须带冒号**,写成 `system` 报 ORA-29248。
-- 开关 `_allow_system_wallet`(默认 `TRUE`)若被设为 `FALSE`,`system:` 会失效。
+- 开关 `_allow_system_wallet`(默认 `TRUE`)若被设为 `FALSE`,`system:` 会失效;但该参数非 session 可调(ORA-02096),改需 `ALTER SYSTEM ... scope=spfile` 并重启。
 - `UTL_HTTP.REQUEST` 只取前 2000 字节;大页面用 `BEGIN_REQUEST` + `GET_RESPONSE` + `READ_TEXT` 循环读全。
 - 非 SYS 用户调用 UTL_HTTP 需走网络 ACL(`DBMS_NETWORK_ACL_ADMIN`),23ai 的 `APPEND_HOST_ACE` 签名与旧文档不同;SYS 豁免,故本脚本无需授权。
 - 本 VM 改过网络(bridged→NAT+host-only);若日后恢复桥接,主机访问改回 VM 的局域网 IP。
