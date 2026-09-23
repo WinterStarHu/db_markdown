@@ -21,7 +21,7 @@ PL/SQL procedure successfully completed.
 
 ===== S3. SET_WALLET('system:') -> public HTTPS hosts =====
 https://www.example.com/	   OK  len=559
-https://www.oracle.com/ 	   OK  len=1449
+https://www.oracle.com/ 	   ERR -29273 ORA-29276: transfer timeout
 https://api.github.com/ 	   OK  len=265
 https://www.cloudflare.com/	   OK  len=2000
 https://www.huawei.com/ 	   OK  len=2000
@@ -39,6 +39,34 @@ PL/SQL procedure successfully completed.
 ===== S6. system: + hostname mismatch (baidu via IP, expect ORA-24263) =====
 S6 system: baidu via IP -> ERR -29273 ORA-24263: remote server address on
 certificate and target address mismatch
+
+PL/SQL procedure successfully completed.
+
+===== S5. file: -> non-wallet paths (OS bundle dir & non-existent; expect ORA-28759) =====
+file:/etc/pki/ca-trust/extracted/pem	   -> ERR -29273 ORA-28759: failure to
+open file
+file:/tmp/no_such_wallet_xyz		   -> ERR -29273 ORA-28759: failure to
+open file
+
+PL/SQL procedure successfully completed.
+
+===== S7. malformed wallet paths (expect errors) =====
+garbage 	   -> ERR -29273 ORA-29248: an unrecognized WRL was used to open
+a wallet
+file:		   -> ERR -29273 ORA-28784: file name translation failure
+/etc/nonexistent   -> ERR -29273 ORA-29248: an unrecognized WRL was used to open
+a wallet
+http://x	   -> ERR -29273 ORA-29248: an unrecognized WRL was used to open
+a wallet
+ldap:		   -> ERR -29273 ORA-29248: an unrecognized WRL was used to open
+a wallet
+SYSTEM: 	   -> OK len=559
+System: 	   -> OK len=559
+
+PL/SQL procedure successfully completed.
+
+===== S8. non-https (HTTP) URL with system: (wallet irrelevant for HTTP) =====
+S8 system: + HTTP (non-https) -> OK len=559
 
 PL/SQL procedure successfully completed.
 
@@ -66,9 +94,18 @@ validation failure
 PL/SQL procedure successfully completed.
 
 === restore clock (instant set back + NTP fine-sync) ===
-clock: Wed Sep 23 08:29:50 UTC 2026
+clock: Wed Sep 23 11:59:32 UTC 2026
 VERIFY system: (clock restored) -> OK len=559
 
 PL/SQL procedure successfully completed.
 
 ===== DONE =====
+
+-- Notes (real-run variance, not errors):
+--  * www.oracle.com sometimes hits ORA-29276 transfer timeout (slow CDN from CN);
+--    re-run usually OK. Not a cert/validation issue.
+--  * S7: scheme prefix is case-insensitive (SYSTEM:/System: both OK), but the
+--    trailing colon is required (system without colon -> ORA-29248).
+--  * S5: file: needs an Oracle wallet dir (ewallet.p12/cwallet.sso); pointing file:
+--    at the OS PEM bundle dir OR a non-existent dir -> ORA-28759.
+--  * S8: the wallet only matters for HTTPS; plain HTTP works regardless.

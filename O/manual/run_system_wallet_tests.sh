@@ -96,6 +96,59 @@ END;
 EXIT
 SQL
 
+echo "===== S5. file: -> non-wallet paths (OS bundle dir & non-existent; expect ORA-28759) ====="
+$SP -S -L "/ as sysdba" <<'SQL'
+SET SERVEROUTPUT ON
+DECLARE s VARCHAR2(32767);
+BEGIN
+  FOR r IN (SELECT column_value p FROM table(sys.dbms_debug_vc2coll(
+            'file:/etc/pki/ca-trust/extracted/pem','file:/tmp/no_such_wallet_xyz'))) LOOP
+    BEGIN
+      utl_http.set_wallet(r.p); utl_http.set_transfer_timeout(10);
+      s:=utl_http.request('https://www.example.com/');
+      dbms_output.put_line(rpad(r.p,42)||' -> OK len='||length(s));
+    EXCEPTION WHEN OTHERS THEN
+      dbms_output.put_line(rpad(r.p,42)||' -> ERR '||sqlcode||' '||utl_http.get_detailed_sqlerrm);
+    END;
+  END LOOP;
+END;
+/
+EXIT
+SQL
+
+echo "===== S7. malformed wallet paths (expect errors) ====="
+$SP -S -L "/ as sysdba" <<'SQL'
+SET SERVEROUTPUT ON
+DECLARE s VARCHAR2(32767);
+BEGIN
+  FOR r IN (SELECT column_value p FROM table(sys.dbms_debug_vc2coll(
+            'garbage','file:','/etc/nonexistent','http://x','ldap:','SYSTEM:','System:'))) LOOP
+    BEGIN
+      utl_http.set_wallet(r.p); utl_http.set_transfer_timeout(8);
+      s:=utl_http.request('https://www.example.com/');
+      dbms_output.put_line(rpad(r.p,18)||' -> OK len='||length(s));
+    EXCEPTION WHEN OTHERS THEN
+      dbms_output.put_line(rpad(r.p,18)||' -> ERR '||sqlcode||' '||utl_http.get_detailed_sqlerrm);
+    END;
+  END LOOP;
+END;
+/
+EXIT
+SQL
+
+echo "===== S8. non-https (HTTP) URL with system: (wallet irrelevant for HTTP) ====="
+$SP -S -L "/ as sysdba" <<'SQL'
+SET SERVEROUTPUT ON
+DECLARE s VARCHAR2(32767);
+BEGIN utl_http.set_wallet('system:'); utl_http.set_follow_redirect(0); utl_http.set_transfer_timeout(10);
+  s:=utl_http.request('http://www.example.com/');
+  dbms_output.put_line('S8 system: + HTTP (non-https) -> OK len='||length(s));
+EXCEPTION WHEN OTHERS THEN dbms_output.put_line('S8 HTTP -> ERR '||sqlcode||' '||utl_http.get_detailed_sqlerrm);
+END;
+/
+EXIT
+SQL
+
 echo "===== C-system: TLS1.1-only self-signed (expect ORA-29019, version before cert) ====="
 D=/tmp/sysc; rm -rf "$D"; mkdir -p "$D"; cd "$D"
 openssl req -x509 -newkey rsa:2048 -nodes -keyout k.pem -out c.pem -days 2 \
