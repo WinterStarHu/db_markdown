@@ -362,7 +362,24 @@ sqlplus / as sysdba                  # bequeath OS 认证(本机 OS 认证可用
 ```
 即 OS 认证 `/ as sysdba` 本身是好的,平时"失败"是 TWO_TASK 把它拐去了 listener。
 
-## 11. 备注 / 已知坑
+## 11. `system:` 固化脚本清单
+
+以下脚本按"自签需要的给 sh、纯 SQL 的给 sql、时钟过期的给 sh+sql 一对"拆分:
+
+| 文件 | 类型 | 内容 | 前置条件 |
+|---|---|---|---|
+| `system_wallet_basic.sql` | 纯 SQL | S0 环境 / S1 无钱包→ORA-29024 / S2 漏冒号→ORA-29248 / S3 公网 8 站点 / S4 错密码→OK(忽略) / S6 baidu 用 IP→ORA-24263 | 公网通 |
+| `system_wallet_basic.out` | 输出 | 上面实跑结果 | |
+| `system_wallet_tls11.sh` | 自签 sh | 自签证书 + 起 TLS1.1 s_server + 跑 C-system 测试 + 清理 | openssl |
+| `system_wallet_tls11.out` | 输出 | C-system → ORA-29019(版本先于证书) | |
+| `clock_leaf_expiry.sh` | 时钟 sh | 时钟跳到叶子过期/根有效,跑 sql,trap 恢复 | sudo |
+| `clock_leaf_expiry.sql` | SQL | D-system 叶子过期请求(example.com) | 被 sh 调用 |
+| `clock_leaf_expiry.out` | 输出 | D-system → ORA-29024(纯叶子过期) | |
+
+> 参数相关的测试(ssl_wallet / _implicit_ssl_wallet / _allow_system_wallet / wallet_root)不单列脚本,见 §10。
+> 综合主脚本(含 file: 钱包场景 A-G)`test_system_wallet.sql` / `.out` 仍在同目录。
+
+## 12. 备注 / 已知坑
 
 - **`system` 必须带冒号**,写成 `system` 报 ORA-29248。
 - **`_allow_system_wallet`(默认 TRUE)并非 `system:` 总开关**:实测置 FALSE + 重启后 `system:` 仍可用(§10.4)。它非 session 可调(ORA-02096),可经 `ALTER SYSTEM ... scope=spfile` + 重启修改。
