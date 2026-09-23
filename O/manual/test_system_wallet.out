@@ -112,6 +112,18 @@ I1 no SET_WALLET (implicit ssl_wallet) -> ERR -29273 ORA-29024: Certificate vali
 I2 system: (ssl_wallet also set)        -> OK len=559
 reset ssl_wallet -> OK ; final ssl_wallet=(null)
 
+--- 4.1b _implicit_ssl_wallet=FALSE (spfile + restart), ssl_wallet set, matrix ---
+before _implicit_ssl_wallet=TRUE ; set false spfile -> OK ; restart
+_implicit_ssl_wallet=FALSE, con=CDB$ROOT, ssl_wallet=file:/home/oracle/wallet_http
+M1 no SET_WALLET (_implicit=FALSE, ssl_wallet set) -> ERR -29273 ORA-29024
+M2 system: (_implicit=FALSE)                       -> OK len=559
+M3 file:    (_implicit=FALSE)                      -> OK len=559
+restore: _implicit_ssl_wallet=TRUE, status=OPEN, VERIFY system: -> OK len=559
+(cleanup: alter system reset ssl_wallet scope=both -> OK ; final ssl_wallet=(null),
+ _implicit_ssl_wallet=TRUE, _allow_system_wallet=TRUE, status=OPEN)
+note: ssl_wallet with 'file:' prefix got normalized to $ORACLE_HOME/dbs/file:/home/oracle/wallet_http
+      (ssl_wallet expects a plain directory path, not a 'file:' URI).
+
 --- 4.2 _allow_system_wallet=FALSE (spfile + restart) ---
 before: _allow_system_wallet=TRUE
 set false spfile -> OK ; SHUTDOWN IMMEDIATE

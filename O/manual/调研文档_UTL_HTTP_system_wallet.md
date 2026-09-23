@@ -317,7 +317,14 @@ _allow_system_wallet  = TRUE    -- Allow Usage of SYSTEM Wallet Path for Outboun
 I1 无 SET_WALLET(隐式用 ssl_wallet?)-> ERR -29273 ORA-29024   ← 没有自动套用
 I2 SET_WALLET('system:')            -> OK  len=559            ← system: 不受 ssl_wallet 影响
 ```
-**结论**:`ssl_wallet` 设了,**UTL_HTTP 也不会隐式拿它当信任库**(`_implicit_ssl_wallet=TRUE` 在此场景未见自动套用);要验证 HTTPS 仍须显式 `SET_WALLET`。`system:` 与 `ssl_wallet` 相互独立。
+再把 `_implicit_ssl_wallet` 置 FALSE(spfile+重启,确认 param=FALSE),`ssl_wallet` 仍设着,矩阵:
+```
+M1 无 SET_WALLET (_implicit=FALSE, ssl_wallet set) -> ERR -29273 ORA-29024   ← 与 TRUE 时一样
+M2 system: (_implicit=FALSE)                       -> OK len=559
+M3 file:    (_implicit=FALSE)                      -> OK len=559
+```
+**结论**:无论 `_implicit_ssl_wallet` TRUE 还是 FALSE,**UTL_HTTP 都不会自动拿 `ssl_wallet` 当 HTTPS 信任库**(M1/I1 均 ORA-29024);该参数在本配置对 UTL_HTTP 无可观察效果。要验证 HTTPS 仍须显式 `SET_WALLET`。`system:` 与 `ssl_wallet` 相互独立。
+> 附:`ssl_wallet` 参数对 `file:` 前缀不识别——设 `file:/home/oracle/wallet_http` 被规范化成 `$ORACLE_HOME/dbs/file:/home/oracle/wallet_http`(当成相对路径)。`ssl_wallet` 应填纯目录路径。测试后已 `reset` 清干净。
 
 ### 10.4 `_allow_system_wallet=FALSE`(spfile + 重启,实测)
 纠正前文假设:此开关 **并不是** `system:` 的总闸。
