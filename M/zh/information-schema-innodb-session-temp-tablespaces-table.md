@@ -1,0 +1,135 @@
+# 26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表_MySQL 8.0 参考手册
+
+26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表_MySQL 8.0 参考手册
+Skip to Main Content
+Documentation
+MySQL手册
+MySQL企业版
+工作台
+InnoDB集群
+MySQL NDB集群
+连接器
+Section Menu:
+Documentation Home
+MySQL 8.0 参考手册
+前言和法律声明
+第一章 一般信息
+第 2 章安装和升级 MySQL
+第 3 章教程
+第 4 章 MySQL 程序
+第 5 章 MySQL 服务器管理
+第 6 章 安全
+第 7 章备份与恢复
+第8章优化
+第9章语言结构
+第 10 章字符集、排序规则、Unicode
+第 11 章数据类型
+第 12 章函数和运算符
+第 13 章 SQL 语句
+第14章MySQL数据字典
+第 15 章 InnoDB 存储引擎
+第 16 章替代存储引擎
+第十七章复制
+第十八章 组复制
+第十九章MySQL Shell
+第 20 章使用 MySQL 作为文档存储
+第21章InnoDB Cluster
+第 22 章 InnoDB 副本集
+第 23 章 MySQL NDB Cluster 8.0
+第24章分区
+第25章存储对象
+第 26 章 INFORMATION_SCHEMA 表
+26.1 简介
+26.2 INFORMATION_SCHEMA 表参考
+26.3 INFORMATION_SCHEMA 总表
+26.4 INFORMATION_SCHEMA InnoDB 表
+26.4.1 INFORMATION_SCHEMA InnoDB 表参考1
+26.4.2 INFORMATION_SCHEMA INNODB_BUFFER_PAGE 表1
+26.4.3 INFORMATION_SCHEMA INNODB_BUFFER_PAGE_LRU 表1
+26.4.4 INFORMATION_SCHEMA INNODB_BUFFER_POOL_STATS 表1
+26.4.5 INFORMATION_SCHEMA INNODB_CACHED_INDEXES 表1
+26.4.6 INFORMATION_SCHEMA INNODB_CMP 和 INNODB_CMP_RESET 表1
+26.4.7 INFORMATION_SCHEMA INNODB_CMPMEM 和 INNODB_CMPMEM_RESET 表1
+26.4.8 INFORMATION_SCHEMA INNODB_CMP_PER_INDEX 和 INNODB_CMP_PER_INDEX_RESET 表1
+26.4.9 INFORMATION_SCHEMA INNODB_COLUMNS 表1
+26.4.10 INFORMATION_SCHEMA INNODB_DATAFILES 表1
+26.4.11 INFORMATION_SCHEMA INNODB_FIELDS 表1
+26.4.12 INFORMATION_SCHEMA INNODB_FOREIGN 表1
+26.4.13 INFORMATION_SCHEMA INNODB_FOREIGN_COLS 表1
+26.4.14 INFORMATION_SCHEMA INNODB_FT_BEING_DELETED 表1
+26.4.15 INFORMATION_SCHEMA INNODB_FT_CONFIG 表1
+26.4.16 INFORMATION_SCHEMA INNODB_FT_DEFAULT_STOPWORD 表1
+26.4.17 INFORMATION_SCHEMA INNODB_FT_DELETED 表1
+26.4.18 INFORMATION_SCHEMA INNODB_FT_INDEX_CACHE 表1
+26.4.19 INFORMATION_SCHEMA INNODB_FT_INDEX_TABLE 表1
+26.4.20 INFORMATION_SCHEMA INNODB_INDEXES 表1
+26.4.21 INFORMATION_SCHEMA INNODB_METRICS 表1
+26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表1
+26.4.23 INFORMATION_SCHEMA INNODB_TABLES 表1
+26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表1
+26.4.25 INFORMATION_SCHEMA INNODB_TABLESPACES_BRIEF 表1
+26.4.26 INFORMATION_SCHEMA INNODB_TABLESTATS 视图1
+26.4.27 INFORMATION_SCHEMA INNODB_TEMP_TABLE_INFO 表1
+26.4.28 INFORMATION_SCHEMA INNODB_TRX 表1
+26.4.29 INFORMATION_SCHEMA INNODB_VIRTUAL 表1
+26.5 INFORMATION_SCHEMA线程池表
+26.6 INFORMATION_SCHEMA 连接控制表
+26.7 INFORMATION_SCHEMA MySQL 企业防火墙表
+26.8 SHOW 语句的扩展
+第 27 章 MySQL 性能模式
+第 28 章 MySQL 系统模式
+第 29 章连接器和 API
+第30章MySQL企业版
+第31章MySQL工作台
+第 32 章 OCI 市场上的 MySQL
+附录 A MySQL 8.0 常见问题解答
+附录 B 错误信息和常见问题
+附录 C 索引
+MySQL 词汇表
+MySQL 8.0 参考手册  / 第 26 章 INFORMATION_SCHEMA 表  / 26.4 INFORMATION_SCHEMA InnoDB 表  /
+26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表
+26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表
+该INNODB_SESSION_TEMP_TABLESPACES
+表提供有关用于内部和用户创建的临时表的会话临时表空间的元数据。该表是在 MySQL 8.0.13 中添加的。
+该INNODB_SESSION_TEMP_TABLESPACES
+表有以下列：
+ID
+进程或会话 ID。
+SPACE
+表空间 ID。为会话临时表空间保留了 40 万个空间 ID 的范围。每次启动服务器时都会重新创建会话临时表空间。空间 ID 在服务器关闭时不会保留，并且可以重新使用。
+PATH
+表空间数据文件路径。会话临时表空间有一个ibt文件扩展名。
+SIZE
+表空间的大小，以字节为单位。
+STATE
+表空间的状态。ACTIVE
+表示该表空间当前正被会话使用。
+INACTIVE表示该表空间位于可用会话临时表空间池中。
+PURPOSE
+表空间的用途。INTRINSIC
+表示该表空间用于优化器使用的优化内部临时表。
+SLAVE表示表空间被分配用于在复制从站上存储用户创建的临时表。USER表示该表空间用于用户创建的临时表。
+NONE表明表空间未被使用。
+例子
+mysql> SELECT * FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TABLESPACES;
++----+------------+----------------------------+-------+----------+-----------+
+| ID | SPACE      | PATH                       | SIZE  | STATE    | PURPOSE   |
++----+------------+----------------------------+-------+----------+-----------+
+|  8 | 4294566162 | ./#innodb_temp/temp_10.ibt | 81920 | ACTIVE   | INTRINSIC |
+|  8 | 4294566161 | ./#innodb_temp/temp_9.ibt  | 98304 | ACTIVE   | USER      |
+|  0 | 4294566153 | ./#innodb_temp/temp_1.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566154 | ./#innodb_temp/temp_2.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566155 | ./#innodb_temp/temp_3.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566156 | ./#innodb_temp/temp_4.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566157 | ./#innodb_temp/temp_5.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566158 | ./#innodb_temp/temp_6.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566159 | ./#innodb_temp/temp_7.ibt  | 81920 | INACTIVE | NONE      |
+|  0 | 4294566160 | ./#innodb_temp/temp_8.ibt  | 81920 | INACTIVE | NONE      |
++----+------------+----------------------------+-------+----------+-----------+
+笔记
+您必须具有PROCESS
+查询此表的权限。
+使用INFORMATION_SCHEMA
+COLUMNS表或
+SHOW COLUMNS语句查看有关此表的列的其他信息，包括数据类型和默认值。
+© Mysql 中文网

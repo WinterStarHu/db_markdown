@@ -1,0 +1,14 @@
+# ALL_SCHEDULER_GLOBAL_ATTRIBUTE
+
+`ALL_SCHEDULER_GLOBAL_ATTRIBUTE` 显示所有调度器属性的值（例如 `DEFAULT_TIMEZONE` 和 `CURRENT_OPEN_WINDOW`）。
+
+相关视图
+`DBA_SCHEDULER_GLOBAL_ATTRIBUTE` 显示数据库中所有调度器属性的值。
+
+| Column | Datatype | NULL | 说明 |
+|---|---|---|---|
+| ATTRIBUTE_NAME | VARCHAR2(128) | NOT NULL | Scheduler 属性的名称 |
+| VALUE | VARCHAR2(256) |  | Scheduler 属性的值 |
+
+参见：
+"DBA_SCHEDULER_GLOBAL_ATTRIBUTE"

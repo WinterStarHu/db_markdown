@@ -1,0 +1,6 @@
+# USER_SCHEDULER_JOBS
+
+`USER_SCHEDULER_JOBS` 显示当前用户拥有的Scheduler 作业的信息。 其列（除 `OWNER` 外）与 `ALL_SCHEDULER_JOBS` 中的列相同。
+
+参见：
+"ALL_SCHEDULER_JOBS"

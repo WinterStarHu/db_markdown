@@ -1,0 +1,152 @@
+# 13.2.4 HANDLER 语句_MySQL 8.0 参考手册
+
+13.2.4 HANDLER 语句_MySQL 8.0 参考手册
+Skip to Main Content
+Documentation
+MySQL手册
+MySQL企业版
+工作台
+InnoDB集群
+MySQL NDB集群
+连接器
+Section Menu:
+Documentation Home
+MySQL 8.0 参考手册
+前言和法律声明
+第一章 一般信息
+第 2 章安装和升级 MySQL
+第 3 章教程
+第 4 章 MySQL 程序
+第 5 章 MySQL 服务器管理
+第 6 章 安全
+第 7 章备份与恢复
+第8章优化
+第9章语言结构
+第 10 章字符集、排序规则、Unicode
+第 11 章数据类型
+第 12 章函数和运算符
+第 13 章 SQL 语句
+13.1 数据定义语句
+13.2 数据操作语句
+13.2.1 CALL 语句1
+13.2.2 删除语句1
+13.2.3 DO 声明1
+13.2.4 HANDLER 语句1
+13.2.5 导入表语句1
+13.2.6 插入语句1
+13.2.7 加载数据语句1
+13.2.8 加载 XML 语句1
+13.2.9 REPLACE 语句1
+13.2.10 SELECT 语句1
+13.2.11 子查询1
+13.2.12 TABLE 语句1
+13.2.13 更新语句1
+13.2.14 VALUES 语句1
+13.2.15 WITH（公用表表达式）1
+13.2.12 集合操作1
+13.3 事务和锁定语句
+13.4 复制语句
+13.5 准备好的语句
+13.6 复合语句语法
+13.7 数据库管理语句
+13.8 效用语句
+第14章MySQL数据字典
+第 15 章 InnoDB 存储引擎
+第 16 章替代存储引擎
+第十七章复制
+第十八章 组复制
+第十九章MySQL Shell
+第 20 章使用 MySQL 作为文档存储
+第21章InnoDB Cluster
+第 22 章 InnoDB 副本集
+第 23 章 MySQL NDB Cluster 8.0
+第24章分区
+第25章存储对象
+第 26 章 INFORMATION_SCHEMA 表
+第 27 章 MySQL 性能模式
+第 28 章 MySQL 系统模式
+第 29 章连接器和 API
+第30章MySQL企业版
+第31章MySQL工作台
+第 32 章 OCI 市场上的 MySQL
+附录 A MySQL 8.0 常见问题解答
+附录 B 错误信息和常见问题
+附录 C 索引
+MySQL 词汇表
+MySQL 8.0 参考手册  / 第 13 章 SQL 语句  / 13.2 数据操作语句  /
+13.2.4 HANDLER 语句
+13.2.4 HANDLER 语句
+HANDLER tbl_name OPEN [ [AS] alias]
+HANDLER tbl_name READ index_name { = | <= | >= | < | > } (value1,value2,...)
+[ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name READ index_name { FIRST | NEXT | PREV | LAST }
+[ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name READ { FIRST | NEXT }
+[ WHERE where_condition ] [LIMIT ... ]
+HANDLER tbl_name CLOSE
+该HANDLER语句提供对表存储引擎接口的直接访问。它可用于
+InnoDB和MyISAM表。
+该HANDLER ... OPEN语句打开一个表，使其可以使用后续HANDLER ...
+READ语句访问。此表对象不被其他会话共享，并且在会话调用
+HANDLER ... CLOSE或会话终止之前不会关闭。
+如果使用别名打开表，则使用其他HANDLER语句进一步引用打开的表必须使用别名而不是表名。如果不使用别名，而是使用数据库名称限定的表名打开表，则进一步引用必须使用非限定表名。例如，对于使用 打开的表
+mydb.mytable，进一步的引用必须使用
+mytable。
+第一种HANDLER ... READ语法获取一行，其中指定的索引满足给定的值并且满足
+WHERE条件。如果您有一个多列索引，请将索引列值指定为逗号分隔列表。为索引中的所有列指定值，或为索引列的最左边的前缀指定值。假设一个索引my_idx包含三个列，名称分别为col_a、
+col_b和col_c，顺序如下。该HANDLER语句可以为索引中的所有三列或最左边前缀中的列指定值。例如：
+HANDLER ... READ my_idx = (col_a_val,col_b_val,col_c_val) ...
+HANDLER ... READ my_idx = (col_a_val,col_b_val) ...
+HANDLER ... READ my_idx = (col_a_val) ...
+要使用HANDLER接口来引用表的PRIMARY KEY，请使用带引号的标识符
+`PRIMARY`：
+HANDLER tbl_name READ `PRIMARY` ...
+第二种HANDLER ... READ语法以符合
+WHERE条件的索引顺序从表中获取一行。
+第三种HANDLER ... READ语法以符合
+WHERE条件的自然行顺序从表中获取一行。它比
+需要全表扫描时更快。自然行顺序是行在表数据文件中的存储顺序。此语句也适用于表，但没有这样的概念，因为没有单独的数据文件。
+HANDLER tbl_name READ
+index_nameMyISAMInnoDB
+如果没有LIMIT子句，所有形式的
+HANDLER ... READ获取单行（如果可用）。要返回特定数量的行，请包含一个
+LIMIT子句。它具有与语句相同的语法
+SELECT。请参阅
+第 13.2.10 节，“SELECT 语句”。
+HANDLER ... CLOSE关闭一个用打开的表HANDLER ... OPEN。
+HANDLER
+使用接口而不是普通SELECT
+语句
+有几个原因：
+HANDLER比
+SELECT：
+快
+指定的存储引擎处理程序对象被分配给HANDLER ... OPEN. 该对象被HANDLER
+该表的后续语句重用；它不需要为每个重新初始化。
+涉及的解析较少。
+没有优化器或查询检查开销。
+处理程序接口不必提供一致的数据外观（例如，
+允许脏读），因此存储引擎可以使用SELECT通常不允许的优化。
+HANDLER可以更容易地移植到使用类似低级ISAM接口的 MySQL 应用程序。（请参阅第 15.20 节，“InnoDB memcached 插件”以获取另一种方法来调整使用键值存储范例的应用程序。）
+HANDLER使您能够以 . 难以（甚至不可能）完成的方式遍历数据库SELECT。HANDLER在使用为数据库提供交互式用户界面的应用程序时，
+该
+界面是一种更自然的查看数据的方式。
+HANDLER是一个有点低级的声明。例如，它不提供一致性。即
+HANDLER ... OPEN不对表做
+快照，不
+锁表。这意味着在发出语句后，可以修改表数据（由当前会话或其他会话）并且这些修改可能仅部分可见或扫描。
+HANDLER ...
+OPENHANDLER ...
+NEXTHANDLER ... PREV
+打开的处理程序可以关闭并标记为重新打开，在这种情况下，处理程序将失去其在表中的位置。当以下两种情况都为真时，就会发生这种情况：
+任何会话FLUSH
+TABLES在处理程序的表上执行或 DDL 语句。
+打开处理程序的会话执行HANDLER使用表的非语句。
+TRUNCATE TABLEfor a table 关闭用打开的表的所有处理程序
+HANDLER OPEN。
+如果用 刷新表，用
+打开，则处理程序被隐式刷新并失去其位置。
+FLUSH
+TABLES tbl_name WITH READ
+LOCKHANDLER
+© Mysql 中文网

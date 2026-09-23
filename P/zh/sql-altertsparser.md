@@ -1,0 +1,25 @@
+# ALTER TEXT SEARCH PARSER
+
+ALTER TEXT SEARCH PARSER
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+ALTER TEXT SEARCH PARSERALTER TEXT SEARCH PARSER — 更改文本搜索解析器的定义大纲
+ALTER TEXT SEARCH PARSER name RENAME TO new_name
+ALTER TEXT SEARCH PARSER name SET SCHEMA new_schema
+描述
+ALTER TEXT SEARCH PARSER更改文本搜索解析器的定义。当前，唯一支持的功能是更改该解析器的名称。
+要使用ALTER TEXT SEARCH PARSER，你必须是超级用户。
+参数name
+现有文本搜索解析器的名称（可以是模式限定的）。
+new_name
+该文本搜索解析器的新名称。
+new_schema
+该文本搜索解析器的新架构。
+兼容性
+在 SQL 标准中没有
+ALTER TEXT SEARCH PARSER 语句。
+另见CREATE TEXT SEARCH PARSER, DROP TEXT SEARCH PARSER上一页 上一级 下一页ALTER TEXT SEARCH DICTIONARY 起始页 ALTER TEXT SEARCH TEMPLATE

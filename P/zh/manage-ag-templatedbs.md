@@ -1,0 +1,30 @@
+# 22.3. 模板数据库
+
+22.3. 模板数据库
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+22.3. 模板数据库 #
+CREATE DATABASE实际上通过拷贝一个已有数据库进行工作。默认情况下，它拷贝名为template1的标准系统数据库。所以该数据库是创建新数据库的“模板”。 如果你为template1数据库增加对象，这些对象将被拷贝到后续创建的用户数据库中。 这种行为允许对数据库中标准对象集合的站点本地修改。例如，如果你把过程语言PL/Perl安装到 template1中，那么你在创建用户数据库后不需要额外的操作就可以使用该语言。
+然而，CREATE DATABASE不会复制附加到源数据库的数据库级GRANT权限。
+新数据库具有默认的数据库级权限。
+系统里还有名为template0的第二个标准系统数据库。
+这个数据库包含和template1初始内容一样的数据，也就是说，只包含你的PostgreSQL版本预定义的标准对象。
+在数据库集簇被初始化之后，不应该对template0做任何修改。
+通过指示CREATE DATABASE使用template0取代template1进行拷贝，
+你可以创建一个“原始的”用户数据库（其中不存在用户定义的对象，并且系统对象没有被改变），它不会包含任何template1中的站点本地附加物。
+这一点在恢复一个pg_dump转储时非常方便：转储脚本应该在一个原始的数据库中恢复以确保我们重建被转储数据库的正确内容，而不和任何现在可能已经被加入到template1中的附加物相冲突。
+另一个从template0而不是template1复制的常见原因是，可以在复制template0时指定新的编码和区域设置，而一个template1的副本必须使用和它相同的设置。这是因为template1可能包含编码相关或区域相关的数据，而template0中没有。
+要通过拷贝template0来创建一个数据库，使用：SQL 环境中的
+CREATE DATABASE dbname TEMPLATE template0;
+或者 shell 中的
+createdb -T template0 dbname
+可以创建额外的模板数据库，并且实际上可以通过将集簇中任意数据库指定为CREATE DATABASE的模板来从该数据库拷贝。不过，我们必须明白，这个功能并不是设计作为一般性的“COPY DATABASE”功能。主要的限制是当源数据库被拷贝时，不能有其他会话连接到它。如果在CREATE DATABASE开始时存在任何其他连接，那么该命令将会失败。在拷贝操作期间，到源数据库的新连接将被阻止。
+对于每一个数据库在pg_database中存在两个有用的标志：datistemplate和datallowconn列。datistemplate可以被设置来指示该数据库是否要作为CREATE DATABASE的模板。如果设置了这个标志，那么该数据库可以被任何有CREATEDB权限的用户克隆；如果没有被设置，那么只有超级用户和该数据库的拥有者可以克隆它。如果datallowconn为假，那么将不允许与该数据库建立任何新的连接（但已有的会话不会因为把该标志设置为假而被中止）。template0通常被标记为datallowconn = false来阻止对它的修改。template0和template1通常总是被标记为datistemplate = true。
+注意
+除了template1是CREATE DATABASE的默认源数据库名之外，template1和template0没有任何特殊的状态。例如，我们可以删除template1然后从template0重新创建它而不会有任何不良效果。如果我们不小心在template1中增加了一堆垃圾，那么我们就会建议做这样的操作（要删除template1，它必须有pg_database.datistemplate = false）。
+当数据库集簇被初始化时，也会创建postgres数据库。这个数据库用于作为用户和应用连接的默认数据库。它只是template1的一个拷贝，需要时可以删除并重建。
+上一页 上一级 下一页22.2. 创建数据库 起始页 22.4. 数据库配置

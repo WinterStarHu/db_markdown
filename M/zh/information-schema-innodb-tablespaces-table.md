@@ -1,0 +1,186 @@
+# 26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表_MySQL 8.0 参考手册
+
+26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表_MySQL 8.0 参考手册
+Skip to Main Content
+Documentation
+MySQL手册
+MySQL企业版
+工作台
+InnoDB集群
+MySQL NDB集群
+连接器
+Section Menu:
+Documentation Home
+MySQL 8.0 参考手册
+前言和法律声明
+第一章 一般信息
+第 2 章安装和升级 MySQL
+第 3 章教程
+第 4 章 MySQL 程序
+第 5 章 MySQL 服务器管理
+第 6 章 安全
+第 7 章备份与恢复
+第8章优化
+第9章语言结构
+第 10 章字符集、排序规则、Unicode
+第 11 章数据类型
+第 12 章函数和运算符
+第 13 章 SQL 语句
+第14章MySQL数据字典
+第 15 章 InnoDB 存储引擎
+第 16 章替代存储引擎
+第十七章复制
+第十八章 组复制
+第十九章MySQL Shell
+第 20 章使用 MySQL 作为文档存储
+第21章InnoDB Cluster
+第 22 章 InnoDB 副本集
+第 23 章 MySQL NDB Cluster 8.0
+第24章分区
+第25章存储对象
+第 26 章 INFORMATION_SCHEMA 表
+26.1 简介
+26.2 INFORMATION_SCHEMA 表参考
+26.3 INFORMATION_SCHEMA 总表
+26.4 INFORMATION_SCHEMA InnoDB 表
+26.4.1 INFORMATION_SCHEMA InnoDB 表参考1
+26.4.2 INFORMATION_SCHEMA INNODB_BUFFER_PAGE 表1
+26.4.3 INFORMATION_SCHEMA INNODB_BUFFER_PAGE_LRU 表1
+26.4.4 INFORMATION_SCHEMA INNODB_BUFFER_POOL_STATS 表1
+26.4.5 INFORMATION_SCHEMA INNODB_CACHED_INDEXES 表1
+26.4.6 INFORMATION_SCHEMA INNODB_CMP 和 INNODB_CMP_RESET 表1
+26.4.7 INFORMATION_SCHEMA INNODB_CMPMEM 和 INNODB_CMPMEM_RESET 表1
+26.4.8 INFORMATION_SCHEMA INNODB_CMP_PER_INDEX 和 INNODB_CMP_PER_INDEX_RESET 表1
+26.4.9 INFORMATION_SCHEMA INNODB_COLUMNS 表1
+26.4.10 INFORMATION_SCHEMA INNODB_DATAFILES 表1
+26.4.11 INFORMATION_SCHEMA INNODB_FIELDS 表1
+26.4.12 INFORMATION_SCHEMA INNODB_FOREIGN 表1
+26.4.13 INFORMATION_SCHEMA INNODB_FOREIGN_COLS 表1
+26.4.14 INFORMATION_SCHEMA INNODB_FT_BEING_DELETED 表1
+26.4.15 INFORMATION_SCHEMA INNODB_FT_CONFIG 表1
+26.4.16 INFORMATION_SCHEMA INNODB_FT_DEFAULT_STOPWORD 表1
+26.4.17 INFORMATION_SCHEMA INNODB_FT_DELETED 表1
+26.4.18 INFORMATION_SCHEMA INNODB_FT_INDEX_CACHE 表1
+26.4.19 INFORMATION_SCHEMA INNODB_FT_INDEX_TABLE 表1
+26.4.20 INFORMATION_SCHEMA INNODB_INDEXES 表1
+26.4.21 INFORMATION_SCHEMA INNODB_METRICS 表1
+26.4.22 INFORMATION_SCHEMA INNODB_SESSION_TEMP_TABLESPACES 表1
+26.4.23 INFORMATION_SCHEMA INNODB_TABLES 表1
+26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表1
+26.4.25 INFORMATION_SCHEMA INNODB_TABLESPACES_BRIEF 表1
+26.4.26 INFORMATION_SCHEMA INNODB_TABLESTATS 视图1
+26.4.27 INFORMATION_SCHEMA INNODB_TEMP_TABLE_INFO 表1
+26.4.28 INFORMATION_SCHEMA INNODB_TRX 表1
+26.4.29 INFORMATION_SCHEMA INNODB_VIRTUAL 表1
+26.5 INFORMATION_SCHEMA线程池表
+26.6 INFORMATION_SCHEMA 连接控制表
+26.7 INFORMATION_SCHEMA MySQL 企业防火墙表
+26.8 SHOW 语句的扩展
+第 27 章 MySQL 性能模式
+第 28 章 MySQL 系统模式
+第 29 章连接器和 API
+第30章MySQL企业版
+第31章MySQL工作台
+第 32 章 OCI 市场上的 MySQL
+附录 A MySQL 8.0 常见问题解答
+附录 B 错误信息和常见问题
+附录 C 索引
+MySQL 词汇表
+MySQL 8.0 参考手册  / 第 26 章 INFORMATION_SCHEMA 表  / 26.4 INFORMATION_SCHEMA InnoDB 表  /
+26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表
+26.4.24 INFORMATION_SCHEMA INNODB_TABLESPACES 表
+该INNODB_TABLESPACES表提供有关InnoDBfile-per-table、general 和 undo 表空间的元数据。
+有关相关的使用信息和示例，请参阅
+第 15.15.3 节，“InnoDB INFORMATION_SCHEMA 模式对象表”。
+笔记
+该INFORMATION_SCHEMA
+FILES表报告
+InnoDB表空间类型的元数据，包括 file-per-table 表空间、通用表空间、系统表空间、全局临时表空间和撤消表空间。
+该INNODB_TABLESPACES表有以下列：
+SPACE
+表空间 ID。
+NAME
+模式（数据库）和表名。
+FLAG
+表示有关表空间格式和存储特征的位级信息的数值。
+ROW_FORMAT
+表空间行格式（Compact or
+Redundant,Dynamic或
+Compressed, 或Undo）。此列中的数据是根据驻留在数据文件中的表空间标志信息解释的。
+无法根据此标志信息确定表空间行格式是Redundant还是
+Compact，这就是其中一个可能的
+ROW_FORMAT值是的原因Compact or
+Redundant。
+PAGE_SIZE
+表空间页面大小。.ibd
+此列中的数据是根据驻留在文件中的表空间标志信息解释的。
+ZIP_PAGE_SIZE
+表空间 zip 页大小。.ibd
+此列中的数据是根据驻留在文件中的表空间标志信息解释的。
+SPACE_TYPE
+表空间的类型。可能的值包括
+General通用表空间、
+Singlefile-per-table 表空间、
+System系统表空间和
+Undo撤消表空间。
+FS_BLOCK_SIZE
+文件系统块大小，即用于打孔的单位大小。此列属于
+InnoDB
+透明页面压缩功能。
+FILE_SIZE
+文件的表观大小，表示未压缩文件的最大大小。此列属于
+InnoDB
+透明页面压缩功能。
+ALLOCATED_SIZE
+文件的实际大小，即磁盘上分配的空间量。此列属于
+InnoDB
+透明页面压缩功能。
+AUTOEXTEND_SIZE
+表空间的自动扩展大小。此列是在 MySQL 8.0.23 中添加的。
+SERVER_VERSION
+创建表空间的 MySQL 版本，或导入表空间的 MySQL 版本，或上次主要 MySQL 版本升级的版本。该值不会因发布系列升级而改变，例如从 MySQL 8.0 升级。x到 8.0。y. 该值可以被视为表空间的“创建”标记或“认证”
+标记。
+SPACE_VERSION
+表空间版本，用于跟踪对表空间格式的更改。
+ENCRYPTION
+表空间是否加密。此列是在 MySQL 8.0.13 中添加的。
+STATE
+表空间状态。此列是在 MySQL 8.0.14 中添加的。
+对于 file-per-table 和 general 表空间，状态包括：
+normal: 表空间正常且处于活动状态。
+discarded: 表空间被一条ALTER
+TABLE ... DISCARD TABLESPACE语句丢弃。
+corrupted: 表空间被标识InnoDB为已损坏。
+对于撤消表空间，状态包括：
+active：undo 表空间中的回滚段可以分配给新的事务。
+inactive：撤消表空间中的回滚段不再被新事务使用。截断过程正在进行中。撤消表空间要么由清除线程隐式选择，要么由一条
+ALTER
+UNDO TABLESPACE ... SET INACTIVE语句变为非活动状态。
+empty: 撤消表空间已被截断并且不再处于活动状态。它已准备好被删除或通过
+ALTER
+UNDO TABLESPACE ... SET INACTIVE声明再次激活。
+例子
+mysql> SELECT * FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE SPACE = 26\G
+*************************** 1. row ***************************
+SPACE: 26
+NAME: test/t1
+FLAG: 0
+ROW_FORMAT: Compact or Redundant
+PAGE_SIZE: 16384
+ZIP_PAGE_SIZE: 0
+SPACE_TYPE: Single
+FS_BLOCK_SIZE: 4096
+FILE_SIZE: 98304
+ALLOCATED_SIZE: 65536
+AUTOEXTEND_SIZE: 0
+SERVER_VERSION: 8.0.23
+SPACE_VERSION: 1
+ENCRYPTION: N
+STATE: normal
+笔记
+您必须具有PROCESS
+查询此表的权限。
+使用INFORMATION_SCHEMA
+COLUMNS表或
+SHOW COLUMNS语句查看有关此表的列的其他信息，包括数据类型和默认值。
+© Mysql 中文网

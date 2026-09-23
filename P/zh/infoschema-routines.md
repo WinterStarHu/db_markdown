@@ -1,0 +1,187 @@
+# 35.45. routines
+
+35.45. routines
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+35.45. routines #
+视图routines包含当前数据库中所有函数和过程。只有那些当前用户能够访问（作为拥有者或具有某些特权）的函数和过程才会被显示。
+表 35.43. routines 列
+列类型
+描述
+specific_catalog sql_identifier
+包含该函数的数据库名称（总是当前数据库）
+specific_schema sql_identifier
+包含函数的模式名称
+specific_name sql_identifier
+该函数的“专用名”。这是一个在模式中唯一标识该函数的名称，即使该函数真正的名称已经被重载。
+专用名的格式尚未被定义，它应当仅被用来与其他指定例程名称的实例进行比较。
+routine_catalog sql_identifier
+包含该函数的数据库名称（始终是当前数据库）
+routine_schema sql_identifier
+包含该函数的模式名称
+routine_name sql_identifier
+该函数的名称（在重载的情况下可能会重复）
+routine_type character_data
+FUNCTION表示是一个函数，PROCEDURE表示是一个过程
+module_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+module_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+module_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+udt_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+udt_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+udt_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+data_type character_data
+该函数的返回数据类型如果是一种内建类型，这里是该数据类型；
+如果是某种数组（此种情况见视图element_types），则为ARRAY；
+否则为USER-DEFINED（此种情况中，该类型被标识在type_udt_name和相关列中）。
+如果是过程则此项为空。
+character_maximum_length cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+character_octet_length cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+character_set_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_catalog sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+collation_schema sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+collation_name sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+numeric_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+numeric_precision_radix cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+numeric_scale cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+datetime_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+interval_type character_data
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+interval_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的返回数据类型
+type_udt_catalog sql_identifier
+该函数的返回数据类型所在的数据库名（总是当前数据库）。如果是过程则此项为空。
+type_udt_schema sql_identifier
+该函数的返回数据类型所在的模式名。如果是过程则此项为空。
+type_udt_name sql_identifier
+该函数的返回数据类型的名字。如果是过程则此项为空。
+scope_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+maximum_cardinality cardinal_number
+总是空，因为数组在PostgreSQL中总是有无限制的最大基数
+dtd_identifier sql_identifier
+该函数返回数据类型的数据类型描述符的一个标识符，在从属于该函数的数据类型描述符中唯一。
+这主要用于与这类标识符的其他实例进行连接（该标识符的具体格式没有被定义并且不保证在未来的版本中保持相同）。
+routine_body character_data
+如果该函数是一个 SQL 函数，则为SQL，否则为EXTERNAL。
+routine_definition character_data
+该函数的源文本（如果该函数不属于一个当前已被启用的角色，则为空）。
+（根据 SQL 标准，只有routine_body为SQL时这一列才适用。
+但是在PostgreSQL中，它将会包含该函数被创建时所指定的任何源文本。）
+external_name character_data
+如果这个函数是一个 C 函数，则为该函数的外部名称（链接符号），否则为空（这会产生和显示在routine_definition中相同的值）。
+external_language character_data
+该函数所用的语言
+parameter_style character_data
+总是GENERAL（SQL 标准定义了其他参数风格，但在PostgreSQL中不可用）
+is_deterministic yes_or_no
+如果该函数被声明为不变（在 SQL 标准中被称为确定性的），则为YES，否则为NO。
+（你不能通过该信息模式查询在PostgreSQL中可用的其他易变级别）。
+sql_data_access character_data
+总是MODIFIES，表示该函数可能修改 SQL 数据。这种信息对PostgreSQL没有用处。
+is_null_call yes_or_no
+如果该函数在任一参数为空时自动返回空值，则为YES，否则为NO。如果是过程则此项为空。
+sql_path character_data
+应用于一个PostgreSQL中不可用的特性
+schema_level_routine yes_or_no
+总是YES（反例是一个用户定义类型的方法，这是在PostgreSQL不可用的一种特性）。
+max_dynamic_result_sets cardinal_number
+应用于一个PostgreSQL中不可用的特性
+is_user_defined_cast yes_or_no
+应用于一个PostgreSQL中不可用的特性
+is_implicitly_invocable yes_or_no
+应用于一个PostgreSQL中不可用的特性
+security_type character_data
+如果该函数以当前用户的特权运行，则为INVOKER；如果该函数以定义它的用户的特权运行，则为DEFINER。
+to_sql_specific_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+to_sql_specific_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+to_sql_specific_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+as_locator yes_or_no
+应用于一个PostgreSQL中不可用的特性
+created time_stamp
+应用于一个PostgreSQL中不可用的特性
+last_altered time_stamp
+应用于一个PostgreSQL中不可用的特性
+new_savepoint_level yes_or_no
+应用于一个PostgreSQL中不可用的特性
+is_udt_dependent yes_or_no
+当前总是NO。另一个选项YES适用于一个PostgreSQL中不可用的特性。
+result_cast_from_data_type character_data
+适用于一个PostgreSQL中不可用的特性
+result_cast_as_locator yes_or_no
+适用于一个PostgreSQL中不可用的特性
+result_cast_char_max_length cardinal_number
+适用于一个PostgreSQL中不可用的特性
+result_cast_char_octet_length cardinal_number
+适用于一个PostgreSQL中不可用的特性
+result_cast_char_set_catalog sql_identifier
+适用于一个PostgreSQL中不可用的特性
+result_cast_char_set_schema sql_identifier
+适用于一个PostgreSQL中不可用的特性
+result_cast_char_set_name sql_identifier
+适用于一个PostgreSQL中不可用的特性
+result_cast_collation_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_collation_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_collation_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_numeric_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_numeric_precision_radix cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_numeric_scale cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_datetime_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_interval_type character_data
+应用于一个PostgreSQL中不可用的特性
+result_cast_interval_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_type_udt_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_type_udt_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_type_udt_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_scope_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_scope_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_scope_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+result_cast_maximum_cardinality cardinal_number
+应用于一个PostgreSQL中不可用的特性
+result_cast_dtd_identifier sql_identifier
+应用于一个PostgreSQL中不可用的特性
+上一页 上一级 下一页35.44. routine_table_usage 起始页 35.46. schemata

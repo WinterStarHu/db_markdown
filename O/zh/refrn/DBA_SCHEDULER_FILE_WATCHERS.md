@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_FILE_WATCHERS
+
+`DBA_SCHEDULER_FILE_WATCHERS` 显示数据库中所有scheduler file watch requests的信息。 其列与 `ALL_SCHEDULER_FILE_WATCHERS` 中的列相同。
+参见：
+- "ALL_SCHEDULER_FILE_WATCHERS"

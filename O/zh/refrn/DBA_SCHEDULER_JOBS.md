@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_JOBS
+
+`DBA_SCHEDULER_JOBS` 显示数据库中所有Scheduler 作业的信息。 其列与 `ALL_SCHEDULER_JOBS` 中的列相同。
+参见：
+- "ALL_SCHEDULER_JOBS"

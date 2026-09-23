@@ -1,0 +1,74 @@
+# 35.60. user_defined_types
+
+35.60. user_defined_types
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+35.60. user_defined_types #
+视图user_defined_types目前包含定义在当前数据库中的所有组合类型。只有那些当前用户能够访问（作为拥有者或具有某些特权）的类型才会被显示。
+SQL 知道两种用户定义类型：结构类型（在PostgreSQL中也被称为组合类型）以及独特类型（在PostgreSQL中未实现）。要经得起未来的考验，请使用列user_defined_type_category来区分它们。其他用户定义类型如基类型和枚举（都是PostgreSQL的扩展）不会被显示在这里。对于域，请见第 35.23 节。
+表 35.58. user_defined_types 列
+列类型
+描述
+user_defined_type_catalog sql_identifier
+包含该类型的数据库名称（始终是当前数据库）
+user_defined_type_schema sql_identifier
+包含该类型的模式名称
+user_defined_type_name sql_identifier
+类型的名称
+user_defined_type_category character_data
+当前总是 STRUCTURED
+is_instantiable yes_or_no
+应用于一个 PostgreSQL 中不可用的特性
+is_final yes_or_no
+应用于一个 PostgreSQL 中不可用的特性
+ordering_form character_data
+应用于一个PostgreSQL中不可用的特性
+ordering_category character_data
+应用于一个PostgreSQL中不可用的特性
+ordering_routine_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+ordering_routine_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+ordering_routine_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+reference_type character_data
+应用于一个PostgreSQL中不可用的特性
+data_type character_data
+应用于一个PostgreSQL中不可用的特性
+character_maximum_length cardinal_number
+应用于一个PostgreSQL中不可用的特性
+character_octet_length cardinal_number
+应用于一个PostgreSQL中不可用的特性
+character_set_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+numeric_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+numeric_precision_radix cardinal_number
+应用于一个PostgreSQL中不可用的特性
+numeric_scale cardinal_number
+应用于一个PostgreSQL中不可用的特性
+datetime_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+interval_type character_data
+应用于一个PostgreSQL中不可用的特性
+interval_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性
+source_dtd_identifier sql_identifier
+应用于一个PostgreSQL中不可用的特性
+ref_dtd_identifier sql_identifier
+应用于一个PostgreSQL中不可用的特性
+上一页 上一级 下一页35.59. usage_privileges 起始页 35.61. user_mapping_options

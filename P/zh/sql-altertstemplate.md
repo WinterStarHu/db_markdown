@@ -1,0 +1,25 @@
+# ALTER TEXT SEARCH TEMPLATE
+
+ALTER TEXT SEARCH TEMPLATE
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+ALTER TEXT SEARCH TEMPLATEALTER TEXT SEARCH TEMPLATE — 更改文本搜索模板的定义大纲
+ALTER TEXT SEARCH TEMPLATE name RENAME TO new_name
+ALTER TEXT SEARCH TEMPLATE name SET SCHEMA new_schema
+描述
+ALTER TEXT SEARCH TEMPLATE更改文本搜索模板的定义。当前唯一支持的功能是更改该模板的名称。
+要使用ALTER TEXT SEARCH TEMPLATE，你必须是超级用户。
+参数name
+一个现有文本搜索模板的名称（可选的模式限定）。
+new_name
+该文本搜索模板的新名称。
+new_schema
+该文本搜索模板的新架构。
+兼容性
+在 SQL 标准中没有
+ALTER TEXT SEARCH TEMPLATE 语句。
+另见CREATE TEXT SEARCH TEMPLATE, DROP TEXT SEARCH TEMPLATE上一页 上一级 下一页ALTER TEXT SEARCH PARSER 起始页 ALTER TRIGGER

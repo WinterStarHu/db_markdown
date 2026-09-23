@@ -1,0 +1,11 @@
+# size_clause <meta property="og:title" content="size_clause</em"> <meta name="application-name" content="SQL Language Reference"> <meta property="og:description" content="Describes SQL grammar and usage"> <meta name="description" content="Describes SQL grammar and usage"> <meta name="dcterms.dateCopyrighted" content="1996,2026"> <meta name="dcterms.identifier" content="E96310-37"> <meta name="dcterms.product" content="en/database/oracle/oracle-database/19"> <meta name="dcterms.isVersionOf" content="SQLRF"> <meta name="keywords" content> <!-- Additional metadata for Learn --> <link rel="first" href="./index.html" title="First Page" type="text/html"> <link rel="contents" href="./toc.htm" title="Table of Contents" type="text/html"> <link rel="stylesheet" href="/sp_common/book-template/ohc-book-template/css/book.css"> <link rel="shortcut icon" href="/sp_common/book-template/ohc-common/img/favicon.ico"> <meta name="robots" content="all"> <link rel="schema.dcterms" href="http://purl.org/dc/terms/"> <script> document.write('<style type="text/css">'); document.write('body > .noscript, body > .noscript ~ * { opacity: 0; }'); document.write('</style>'); </script> <script data-main="/sp_common/book-template/ohc-book-template/js/book-config" src="/sp_common/book-template/requirejs/require.js"></script> <script> if (window.require === undefined) { document.write('<script data-main="./sp_common/book-template/ohc-book-template/js/book-config" src="./sp_common/book-template/requirejs/require.js"><\/script>'); document.write('<link href="./sp_common/book-template/ohc-book-template/css/book.css" rel="stylesheet">'); } </script>
+
+# *size_clause*
+## Purpose
+The *size_clause* lets you specify a number of bytes, kilobytes (K), megabytes (M), gigabytes (G), terabytes (T), petabytes (P), or exabytes (E) in any statement that lets you establish amounts of disk or memory space.
+## Syntax
+## *size_clause*::=
+Description of the illustration size_clause.eps
+## Semantics
+Use the *size_clause* to specify a number or multiple of bytes. If you do not specify any of the multiple abbreviations, then the *integer* is interpreted as bytes.
+**Note:**   Not all multiples of bytes are appropriate in all cases, and context-sensitive limitations may apply. In the latter case, Oracle issues an error message.

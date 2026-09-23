@@ -1,0 +1,6 @@
+# USER_SCHEDULER_JOB_DESTS
+
+`USER_SCHEDULER_JOB_DESTS` 显示当前用户拥有的作业在各自每个目标上的状态的信息。 其列（除 `OWNER` 外）与 `ALL_SCHEDULER_JOB_DESTS` 中的列相同。
+
+参见：
+"ALL_SCHEDULER_JOB_DESTS"

@@ -1,0 +1,162 @@
+# 15.15.8 从 INFORMATION_SCHEMA.FILES 检索 InnoDB 表空间元数据_MySQL 8.0 参考手册
+
+15.15.8 从 INFORMATION_SCHEMA.FILES 检索 InnoDB 表空间元数据_MySQL 8.0 参考手册
+Skip to Main Content
+Documentation
+MySQL手册
+MySQL企业版
+工作台
+InnoDB集群
+MySQL NDB集群
+连接器
+Section Menu:
+Documentation Home
+MySQL 8.0 参考手册
+前言和法律声明
+第一章 一般信息
+第 2 章安装和升级 MySQL
+第 3 章教程
+第 4 章 MySQL 程序
+第 5 章 MySQL 服务器管理
+第 6 章 安全
+第 7 章备份与恢复
+第8章优化
+第9章语言结构
+第 10 章字符集、排序规则、Unicode
+第 11 章数据类型
+第 12 章函数和运算符
+第 13 章 SQL 语句
+第14章MySQL数据字典
+第 15 章 InnoDB 存储引擎
+15.1 InnoDB简介
+15.2 InnoDB 和 ACID 模型
+15.3 InnoDB 多版本
+15.4 InnoDB架构
+15.5 InnoDB 内存结构
+15.6 InnoDB 磁盘结构
+15.7 InnoDB 锁定和事务模型
+15.8 InnoDB配置
+15.9 InnoDB 表和页压缩
+15.10 InnoDB 行格式
+15.11 InnoDB磁盘I/O和文件空间管理
+15.12 InnoDB和在线DDL
+15.13 InnoDB静态数据加密
+15.14 InnoDB 启动选项和系统变量
+15.15 InnoDB INFORMATION_SCHEMA 表
+15.15.1 InnoDB INFORMATION_SCHEMA 表压缩1
+15.15.2 InnoDB INFORMATION_SCHEMA 事务和锁定信息1
+15.15.3 InnoDB INFORMATION_SCHEMA 模式对象表1
+15.15.4 InnoDB INFORMATION_SCHEMA FULLTEXT 索引表1
+15.15.5 InnoDB INFORMATION_SCHEMA 缓冲池表1
+15.15.6 InnoDB INFORMATION_SCHEMA 指标表1
+15.15.7 InnoDB INFORMATION_SCHEMA临时表信息表1
+15.15.8 从 INFORMATION_SCHEMA.FILES 检索 InnoDB 表空间元数据1
+15.16 InnoDB 与 MySQL 性能模式的集成
+15.17 InnoDB 监视器
+15.18 InnoDB备份与恢复
+15.19 InnoDB和MySQL复制
+15.20 InnoDB 内存缓存插件
+15.21 InnoDB 故障排除
+15.22 InnoDB 限制
+15.23 InnoDB 限制和限制
+第 16 章替代存储引擎
+第十七章复制
+第十八章 组复制
+第十九章MySQL Shell
+第 20 章使用 MySQL 作为文档存储
+第21章InnoDB Cluster
+第 22 章 InnoDB 副本集
+第 23 章 MySQL NDB Cluster 8.0
+第24章分区
+第25章存储对象
+第 26 章 INFORMATION_SCHEMA 表
+第 27 章 MySQL 性能模式
+第 28 章 MySQL 系统模式
+第 29 章连接器和 API
+第30章MySQL企业版
+第31章MySQL工作台
+第 32 章 OCI 市场上的 MySQL
+附录 A MySQL 8.0 常见问题解答
+附录 B 错误信息和常见问题
+附录 C 索引
+MySQL 词汇表
+MySQL 8.0 参考手册  / 第 15 章 InnoDB 存储引擎  / 15.15 InnoDB INFORMATION_SCHEMA 表  /
+15.15.8 从 INFORMATION_SCHEMA.FILES 检索 InnoDB 表空间元数据
+15.15.8 从 INFORMATION_SCHEMA.FILES 检索 InnoDB 表空间元数据
+该INFORMATION_SCHEMA.FILES表提供有关所有InnoDB表空间类型的元数据，包括file-per-table 表空间、
+通用表空间、
+系统表空间、
+临时表表空间和撤消表空间（如果存在）。
+本节提供InnoDB特定用法示例。INFORMATION_SCHEMA.FILES有关该表
+提供的数据的更多信息
+，请参阅第 26.3.15 节，“INFORMATION_SCHEMA FILES 表”。
+笔记
+INNODB_TABLESPACES和
+INNODB_DATAFILES表还提供有关表空间的元数据
+，InnoDB但数据仅限于 file-per-table、general 和 undo 表空间。
+此查询从与表空间相关的表字段中
+检索有关InnoDB
+系统表空间的
+元数据。
+不相关的字段总是返回 NULL，并从查询中排除。
+INFORMATION_SCHEMA.FILESInnoDBINFORMATION_SCHEMA.FILESInnoDBmysql> SELECT FILE_ID, FILE_NAME, FILE_TYPE, TABLESPACE_NAME, FREE_EXTENTS,
+TOTAL_EXTENTS,  EXTENT_SIZE, INITIAL_SIZE, MAXIMUM_SIZE, AUTOEXTEND_SIZE, DATA_FREE, STATUS ENGINE
+FROM INFORMATION_SCHEMA.FILES WHERE TABLESPACE_NAME LIKE 'innodb_system' \G
+*************************** 1. row ***************************
+FILE_ID: 0
+FILE_NAME: ./ibdata1
+FILE_TYPE: TABLESPACE
+TABLESPACE_NAME: innodb_system
+FREE_EXTENTS: 0
+TOTAL_EXTENTS: 12
+EXTENT_SIZE: 1048576
+INITIAL_SIZE: 12582912
+MAXIMUM_SIZE: NULL
+AUTOEXTEND_SIZE: 67108864
+DATA_FREE: 4194304
+ENGINE: NORMAL
+此查询检索file-per-table 和通用表空间的FILE_ID（相当于空间 ID）和FILE_NAME（包括路径信息） 。InnoDBFile-per-table 和 general 表空间有一个
+.ibd文件扩展名。
+mysql> SELECT FILE_ID, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibd%' ORDER BY FILE_ID;
++---------+---------------------------------------+
+| FILE_ID | FILE_NAME                             |
++---------+---------------------------------------+
+|       2 | ./mysql/plugin.ibd                    |
+|       3 | ./mysql/servers.ibd                   |
+|       4 | ./mysql/help_topic.ibd                |
+|       5 | ./mysql/help_category.ibd             |
+|       6 | ./mysql/help_relation.ibd             |
+|       7 | ./mysql/help_keyword.ibd              |
+|       8 | ./mysql/time_zone_name.ibd            |
+|       9 | ./mysql/time_zone.ibd                 |
+|      10 | ./mysql/time_zone_transition.ibd      |
+|      11 | ./mysql/time_zone_transition_type.ibd |
+|      12 | ./mysql/time_zone_leap_second.ibd     |
+|      13 | ./mysql/innodb_table_stats.ibd        |
+|      14 | ./mysql/innodb_index_stats.ibd        |
+|      15 | ./mysql/slave_relay_log_info.ibd      |
+|      16 | ./mysql/slave_master_info.ibd         |
+|      17 | ./mysql/slave_worker_info.ibd         |
+|      18 | ./mysql/gtid_executed.ibd             |
+|      19 | ./mysql/server_cost.ibd               |
+|      20 | ./mysql/engine_cost.ibd               |
+|      21 | ./sys/sys_config.ibd                  |
+|      23 | ./test/t1.ibd                         |
+|      26 | /home/user/test/test/t2.ibd           |
++---------+---------------------------------------+
+此查询检索
+全局临时表空间的FILE_ID和
+。全局临时表空间文件名以.
+FILE_NAMEInnoDBibtmpmysql> SELECT FILE_ID, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%ibtmp%';
++---------+-----------+
+| FILE_ID | FILE_NAME |
++---------+-----------+
+|      22 | ./ibtmp1  |
++---------+-----------+
+同样，InnoDB撤消表空间文件名以 . 为前缀undo。以下查询返回FILE_ID和
+FILE_NAME用于InnoDB撤消表空间。
+mysql> SELECT FILE_ID, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%undo%';
+© Mysql 中文网

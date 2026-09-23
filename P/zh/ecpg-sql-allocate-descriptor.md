@@ -1,0 +1,21 @@
+# ALLOCATE DESCRIPTOR
+
+ALLOCATE DESCRIPTOR
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+ALLOCATE DESCRIPTORALLOCATE DESCRIPTOR — 分配一个 SQL 描述符区域大纲
+ALLOCATE DESCRIPTOR name
+描述
+ALLOCATE DESCRIPTOR分配一个新的命名 SQL 描述符区域，它可以用于在 PostgreSQL 服务器和主程序之间交换数据。
+使用DEALLOCATE DESCRIPTOR命令可以释放描述符区域。
+参数name #
+SQL 描述符的名称，大小写敏感。这可以是一个 SQL 标识符或一个主变量。
+示例
+EXEC SQL ALLOCATE DESCRIPTOR mydesc;
+兼容性
+SQL 标准中说明了ALLOCATE DESCRIPTOR。
+另请参阅DEALLOCATE DESCRIPTOR, GET DESCRIPTOR, SET DESCRIPTOR上一页 上一级 下一页34.14. 嵌入式 SQL 命令 起始页 CONNECT

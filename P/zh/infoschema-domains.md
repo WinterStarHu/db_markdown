@@ -1,0 +1,78 @@
+# 35.23. domains
+
+35.23. domains
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+35.23. domains #
+视图domains包含当前数据库中定义的所有域。
+仅显示当前用户有权限访问的域（通过拥有者或某些特权）。
+表 35.21. domains 列
+列类型
+描述
+domain_catalog sql_identifier
+包含该域的数据库名称（始终是当前数据库）
+domain_schema sql_identifier
+包含该域的模式名称
+domain_name sql_identifier
+域名
+data_type character_data
+该域的数据类型，如果是一种内建类型，则为该域的数据类型；如果是某种数组（此种情况见视图element_types），则为ARRAY；否则为USER-DEFINED（此种情况中，该类型被标识在udt_name和相关列中）。
+character_maximum_length cardinal_number
+如果该域有一个字符或位串类型，这里是声明的最大长度；如果没有声明最大长度，则对于所有其他数据类型为空。
+character_octet_length cardinal_number
+如果该域有一个字符类型，这里是一个数据的最大可能长度（以字节计）；对其他所有数据类型为空。最大字节长度取决于声明的字符最大长度（见上文）和服务器编码。
+character_set_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_catalog sql_identifier
+包含此域排序规则的数据库名（总是当前数据库），如果默认或者该域的数据类型不可排序则为空
+collation_schema sql_identifier
+包含此域排序规则的模式名，如果默认或者该域的数据类型不可排序则为null
+collation_name sql_identifier
+该域排序规则的名称，如果默认或者该域的数据类型不可排序则为null
+numeric_precision cardinal_number
+如果该域有一种数字类型，这列包含这个域类型的（声明的或隐式的）精度。精度指示了有效位数。
+它可以按照列numeric_precision_radix中指定的被表示为十进制（基于10）或二进制（基于2）。
+对于所有其他数据类型，这一列为null。
+numeric_precision_radix cardinal_number
+如果该域有一种数字类型，这一列指示numeric_precision和numeric_scale列中的值是基于什么来表示。
+该值为2或10。对于所有其他数据类型，这一列为null。
+numeric_scale cardinal_number
+如果该域有一种准确数字类型，这列包含这个域类型的（声明的或隐式的）比例。比例指示了小数点右侧的有效位数。
+它可以按照列numeric_precision_radix中指定的被表示为十进制（基于10）或二进制（基于2）。
+对于所有其他数据类型，这一列为null。
+datetime_precision cardinal_number
+如果data_type标识一种日期、时间、时间戳或时间间隔类型，
+这一列包含这个域类型的（声明的或隐式的）分数秒的精度，也就是秒值的小数点后的十进制位数。对于所有其他数据类型，这一列为null。
+interval_type character_data
+如果data_type标识一种时间间隔类型，这一列包含时间间隔为这个域包括哪些域的声明，例如YEAR TO MONTH、DAY TO SECOND等等。
+如果没有指定域限制（也就是该时间间隔接受所有域），并且对于所有其他数据类型，这个域为null。
+interval_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性（关于时间间隔类型域的分数秒精度可见datetime_precision）
+domain_default character_data
+该域的默认表达式
+udt_catalog sql_identifier
+该域数据类型被定义的数据库名称（始终是当前数据库）
+udt_schema sql_identifier
+该域数据类型被定义的模式名称
+udt_name sql_identifier
+该域数据类型的名称
+scope_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+maximum_cardinality cardinal_number
+总是空，因为数组在PostgreSQL中总是有无限制的最大基数
+dtd_identifier sql_identifier
+该域的数据类型描述符的一个标识符，在从属于该域的数据类型描述符之中唯一（这不重要，因为一个域只包含一个数据类型描述符）。
+这主要用于与这类标识符的其他实例进行连接（该标识符的具体格式没有被定义并且不保证在未来的版本中保持相同）。
+上一页 上一级 下一页35.22. domain_udt_usage 起始页 35.24. element_types

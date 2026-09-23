@@ -1,0 +1,25 @@
+# ALL_SCHEDULER_NOTIFICATIONS
+
+`ALL_SCHEDULER_NOTIFICATIONS` 显示当前用户可访问的作业的电子邮件通知信息。
+
+相关视图
+- `DBA_SCHEDULER_NOTIFICATIONS` 显示数据库中所有作业的电子邮件通知信息。
+- `USER_SCHEDULER_NOTIFICATIONS` 显示当前用户拥有的作业的电子邮件通知信息。此视图不显示 `OWNER` 列。
+
+| Column | Datatype | NULL | 说明 |
+|---|---|---|---|
+| NOTIFICATION_OWNER | VARCHAR2(128) | NOT NULL | 该通知的属主 |
+| OWNER | VARCHAR2(128) | NOT NULL | 该通知所对应作业的属主 |
+| JOB_NAME | VARCHAR2(128) | NOT NULL | 该通知所对应作业的名称 |
+| JOB_SUBNAME | VARCHAR2(128) |  | 该通知所对应作业的子名 |
+| RECIPIENT | VARCHAR2(4000) | NOT NULL | 接收该电子邮件通知的邮箱地址 |
+| SENDER | VARCHAR2(4000) |  | 发送该电子邮件通知的邮箱地址 |
+| SUBJECT | VARCHAR2(4000) |  | 通知邮件的主题 |
+| BODY | VARCHAR2(4000) |  | 通知邮件的正文 |
+| FILTER_CONDITION | VARCHAR2(4000) |  | 指定对哪些作业事件发送通知的过滤器 |
+| EVENT | VARCHAR2(19) |  | 要对其发送通知的作业事件：JOB_STARTED、JOB_SUCCEEDED、JOB_FAILED、JOB_BROKEN、JOB_COMPLETED、JOB_STOPPED、JOB_SCH_LIM_REACHED、JOB_DISABLED、JOB_CHAIN_STALLED、JOB_OVER_MAX_DUR |
+| EVENT_FLAG | NUMBER | NOT NULL | 要对其发送通知的作业事件的事件编号 |
+
+参见：
+- "DBA_SCHEDULER_NOTIFICATIONS"
+- "USER_SCHEDULER_NOTIFICATIONS"

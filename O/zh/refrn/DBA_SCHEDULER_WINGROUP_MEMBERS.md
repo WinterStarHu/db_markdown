@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_WINGROUP_MEMBERS
+
+`DBA_SCHEDULER_WINGROUP_MEMBERS` displays the members of all Scheduler 窗口 组 in the database. 其列与 `ALL_SCHEDULER_WINGROUP_MEMBERS` 中的列相同。
+参见：
+- "ALL_SCHEDULER_WINGROUP_MEMBERS"

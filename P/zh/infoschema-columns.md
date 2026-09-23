@@ -1,0 +1,113 @@
+# 35.17. columns
+
+35.17. columns
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+35.17. columns #
+视图columns包含数据库中有关所有表列（或视图列）的信息。系统列（ctid等）不包括在内。只有那些当前用户能够访问（作为拥有者或具有某些特权）的列才会被显示。
+表 35.15. columns 列
+列类型
+描述
+table_catalog sql_identifier
+包含表的数据库的名称（总是当前数据库）
+table_schema sql_identifier
+包含表的模式的名称
+table_name sql_identifier
+表的名称
+column_name sql_identifier
+列的名称
+ordinal_position cardinal_number
+该列在表内的顺序位置（从 1 开始计）
+column_default character_data
+该列的默认表达式
+is_nullable yes_or_no
+如果该列可以为空，则为YES，如果已知不能为空，则为NO。一个非空约束是让一列成为不能为空的方法，但还有其他方法。
+data_type character_data
+如果该列的数据类型是一种内建类型，则为该列的数据类型；如果是某种数组（此种情况见视图element_types），则为ARRAY；否则为USER-DEFINED（此种情况下该类型被标识在udt_name和相关列中）。如果该列基于一个域，这一列引用该域底层的类型（该域被标识在domain_name和相关列中）。
+character_maximum_length cardinal_number
+如果data_type标识一个字符或位串类型，这里是声明的最大长度；如果没有声明最大长度，则对于所有其他数据类型为空。
+character_octet_length cardinal_number
+如果data_type标识一个字符类型，这里是一个数据的最大可能长度（以字节计）；对其他所有数据类型为空。
+最大字节长度取决于声明的字符最大长度（见上文）和服务器编码。
+numeric_precision cardinal_number
+如果data_type标识一种数字类型，这列包含这个属性类型的（声明的或隐式的）精度。精度指示了有效位数。
+它可以按照列numeric_precision_radix中指定的被表示为十进制（基于 10）或二进制（基于 2）。对于所有其他数据类型，这一列为空。
+numeric_precision_radix cardinal_number
+如果data_type标识一种数字类型，这一列指示numeric_precision和numeric_scale列中的值是基于什么来表示。
+该值为 2 或 10。对于所有其他数据类型，这一列为空。
+numeric_scale cardinal_number
+如果data_type标识一种准确数字类型，这列包含这个属性类型的（声明的或隐式的）比例。
+比例指示了有效位数。它可以按照列numeric_precision_radix中指定的被表示为十进制（基于 10）或二进制（基于 2）。
+对于所有其他数据类型，这一列为空。
+datetime_precision cardinal_number
+如果data_type标识一种日期、时间、时间戳或时间间隔类型，这一列包含这个属性类型的（声明的或隐式的）分数秒的精度，也就是秒值的小数点后的十进制位数。
+对于所有其他数据类型，这一列为空。
+interval_type character_data
+如果data_type标识一种时间间隔类型，这一列包含时间间隔为这个属性包括哪些域的声明，例如YEAR TO MONTH、DAY TO SECOND等等。
+如果没有指定域限制（也就是该时间间隔接受所有域），并且对于所有其他数据类型，这个域为空。
+interval_precision cardinal_number
+应用于一个PostgreSQL中不可用的特性（关于时间间隔类型属性的分数秒精度可见datetime_precision）
+character_set_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_catalog sql_identifier
+包含此列排序规则的数据库名（总是当前数据库），如果默认或者该列的数据类型不可排序则为空
+collation_schema sql_identifier
+包含此列排序规则的模式名，如果默认或者该列的数据类型不可排序则为空
+collation_name sql_identifier
+该列的排序规则的名称，如果默认或者该列的数据类型不可排序则为空
+domain_catalog sql_identifier
+如果该列有一个域类型，这里是该域所在的数据库名（总是当前数据库），否则为空。
+domain_schema sql_identifier
+如果该列有一个域类型，这里是该域所在的模式名，否则为空。
+domain_name sql_identifier
+如果该列有一个域类型，这里是该域的名称，否则为空。
+udt_catalog sql_identifier
+该列数据类型（如果适用，底层的域类型）定义所在的数据库名称（总是当前数据库）
+udt_schema sql_identifier
+该列数据类型（如果适用，底层的域类型）定义所在的模式名称
+udt_name sql_identifier
+该列数据类型（如果适用，底层的域类型）的名称
+scope_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+maximum_cardinality cardinal_number
+总是空，因为数组在PostgreSQL中总是有无限制的最大基数
+dtd_identifier sql_identifier
+该列的数据类型描述符的一个标识符，在从属于该表的数据类型描述符中唯一。
+这主要用于与这类标识符的其他实例进行连接（该标识符的具体格式没有被定义并且不保证在未来的版本中保持相同）。
+is_self_referencing yes_or_no
+应用于一个PostgreSQL中不可用的特性
+is_identity yes_or_no
+如果该列是一个标识列，则为YES，否则为NO。
+identity_generation character_data
+如果该列是一个标识列，则为ALWAYS或BY DEFAULT，它反映该列的定义。
+identity_start character_data
+如果该列是一个标识列，则是内部序列的起始值，否则为空。
+identity_increment character_data
+如果该列是一个标识列，则是内部序列的增量，否则为空。
+identity_maximum character_data
+如果该列是一个标识列，则是内部序列的最大值，否则为空。
+identity_minimum character_data
+如果该列是一个标识列，则是内部序列的最小值，否则为空。
+identity_cycle yes_or_no
+如果该列是一个标识列，则YES表示内部序列可循环，NO表示不可循环，否则为空。
+is_generated character_data
+如果列是生成的列，则ALWAYS，否则NEVER。
+generation_expression character_data
+如果列是生成的列，则生成表达式，否则为null。
+is_updatable yes_or_no
+如果该列是可更新的，则为YES，否则为NO（基表中的列总是可更新的，视图中的列则不一定）
+因为在 SQL 中有多种方式定义数据类型，而PostgreSQL还包含额外的方式来定义数据类型，它们在信息模式中的表示可能有点困难。列data_type应该标识列的底层内建类型。在PostgreSQL中，这表示定义在系统目录模式pg_catalog中的类型。如果应用能够特别地（例如以不同方式格式化数字类型或使用精度列中的数据）处理众所周知的内建类型，这列可能会有用。列udt_name、udt_schema和udt_catalog总是标识列的底层数据类型，即使该列是基于一个域的（因为PostgreSQL对待内建类型和用户定义类型的方式是一样的，内建类型也出现在这里。这是 SQL 标准的一种扩展）。如果一个应用想要根据该类型以不同的方式处理数据，就应该使用这些列，因为在那种情况下即使该列真的基于一个域也没有关系。如果该列是基于一个域，该域的标识被存储在列domain_name、domain_schema和domain_catalog。如果你想要把列和它们相关的数据类型配对并且把域视作单独的类型，你可以写coalesce(domain_name,
+udt_name)等等。
+上一页 上一级 下一页35.16. column_udt_usage 起始页 35.18. constraint_column_usage

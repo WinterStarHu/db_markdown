@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_GROUPS
+
+`DBA_SCHEDULER_GROUPS` 显示数据库中所有Scheduler object 组的信息。 其列与 `ALL_SCHEDULER_GROUPS` 中的列相同。
+参见：
+- "ALL_SCHEDULER_GROUPS"

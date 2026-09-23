@@ -1,0 +1,28 @@
+# SPI_register_relation
+
+SPI_register_relation
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+SPI_register_relationSPI_register_relation — 通过名称使临时命名关系在 SPI 查询中可用大纲
+int SPI_register_relation(EphemeralNamedRelation enr)
+描述
+SPI_register_relation使一个临时命名关系及其相关信息
+对通过当前SPI连接规划和执行的查询可用。
+参数EphemeralNamedRelation enr
+短暂的命名关系注册项
+返回值
+如果该命令的执行成功，则将返回下列（非负）值：
+SPI_OK_REL_REGISTER
+如果该关系已经成功地注册
+在出错时，会返回下列负值之一：
+SPI_ERROR_ARGUMENT
+如果enr是NULL或者其name字段是NULL
+SPI_ERROR_UNCONNECTED
+如果从一个未连接的C函数中调用
+SPI_ERROR_REL_DUPLICATE
+如果enr的name字段中指定的名称已经为该连接注册
+上一页 上一级 下一页SPI_saveplan 起始页 SPI_unregister_relation

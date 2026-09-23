@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_GLOBAL_ATTRIBUTE
+
+`DBA_SCHEDULER_GLOBAL_ATTRIBUTE` displays the values of all scheduler attributes in the database (for example, `DEFAULT_TIMEZONE` and `CURRENT_OPEN_WINDOW`). 其列与 `ALL_SCHEDULER_GLOBAL_ATTRIBUTE` 中的列相同。
+参见：
+- "ALL_SCHEDULER_GLOBAL_ATTRIBUTE"

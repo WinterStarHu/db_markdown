@@ -1,0 +1,5 @@
+# DBA_SCHEDULER_REMOTE_JOBSTATE
+
+`DBA_SCHEDULER_REMOTE_JOBSTATE` displays information about the state of all jobs at 远程数据库. 其列与 `ALL_SCHEDULER_REMOTE_JOBSTATE` 中的列相同。
+参见：
+- "ALL_SCHEDULER_REMOTE_JOBSTATE"

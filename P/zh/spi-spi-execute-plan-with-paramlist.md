@@ -1,0 +1,34 @@
+# SPI_execute_plan_with_paramlist
+
+SPI_execute_plan_with_paramlist
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+SPI_execute_plan_with_paramlistSPI_execute_plan_with_paramlist — 执行由SPI_prepare预备的语句大纲
+int SPI_execute_plan_with_paramlist(SPIPlanPtr plan,
+ParamListInfo params,
+bool read_only,
+long count)
+描述
+SPI_execute_plan_with_paramlist执行一个由
+SPI_prepare准备好的语句。这个函数与
+SPI_execute_plan等效，不过被传递给该查询
+的参数值的信息以不同的方式呈现。ParamListInfo表现形
+式更方便于把这种格式的值向下传递。它也支持通过
+ParamListInfo中指定的钩子函数动态设置参数。
+这个函数现在已废弃，改为使用SPI_execute_plan_extended。
+参数SPIPlanPtr plan
+预备语句（由SPI_prepare返回）
+ParamListInfo params
+包含参数类型和值的数据结构；如果没有则为 NULL
+bool read_onlytrue表示只读执行long count
+要返回的最大行数，或者用0表示没有限制
+返回值
+返回值与SPI_execute_plan一样。
+成功时，在SPI_execute_plan中会设置
+SPI_processed和
+SPI_tuptable。
+上一页 上一级 下一页SPI_execute_plan_extended 起始页 SPI_execp

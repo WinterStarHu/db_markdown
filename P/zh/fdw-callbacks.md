@@ -1,0 +1,410 @@
+# 58.2. 外部数据包装器回调例程
+
+58.2. 外部数据包装器回调例程
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+58.2. 外部数据包装器回调例程 #58.2.1. 用于扫描外部表的FDW例程58.2.2. 用于扫描外部连接的 FDW 例程58.2.3. 用于规划扫描/连接后处理的 FDW 例程58.2.4. 更新外部表的FDW例程58.2.5. FDW Routines for TRUNCATE58.2.6. 用于行锁定的FDW例程58.2.7. EXPLAIN的FDW例程58.2.8. ANALYZE的FDW例程58.2.9. IMPORT FOREIGN SCHEMA的FDW例程58.2.10. 并行执行的FDW例程58.2.11. FDW Routines for Asynchronous Execution58.2.12. 用于路径重新参数化的FDW例程
+FDW处理器函数返回一个palloc过的FdwRoutine结构，它包含下文描述的回调函数的指针。扫描相关的函数是必需的，其他的都是可选的。
+FdwRoutine结构类型被声明在src/include/foreign/fdwapi.h中，可以查看它以获得额外的信息。
+58.2.1. 用于扫描外部表的FDW例程 #
+void
+GetForeignRelSize(PlannerInfo *root,
+RelOptInfo *baserel,
+Oid foreigntableid);
+获取一个外部表的关系尺寸估计。在对一个扫描外部表的查询进行规划的开头将调用该函数。root是规划器的关于该查询的全局信息；baserel是规划器的关于该表的信息；foreigntableid是外部表在pg_class中的OID（foreigntableid可以从规划器的数据结构中获得，但是为了减少工作量，这里直接显式地将它传递给函数）。
+这个函数应该更新baserel->rows为表扫描根据限制条件完成了过滤后将返回的预期行数。
+baserel->rows的初始值只是一个常数的默认估计值，应该尽可能把它替换掉。
+如果该函数能够计算出一个平均结果行宽度的更好的估计值，该函数也可能选择更新baserel->width。
+(初始值基于列数据类型和最后一个ANALYZE测量的列平均宽度值。)
+此外，如果该函数能够更好地计算出外部表的总行数，则该函数可以更新baserel->tuples。
+（初始值来自pg_class。
+reltuples表示最后一次ANALYZE看到的总行数；如果没有ANALYZE在此外表上完成，它将是-1。）
+更多信息请见第 58.4 节。
+void
+GetForeignPaths(PlannerInfo *root,
+RelOptInfo *baserel,
+Oid foreigntableid);
+为一个外部表上的扫描创建可能的访问路径。这个函数在查询规划过程中被调用。参数和GetForeignRelSize相同，后者已经被调用过了。
+这个函数必须为外部表上的扫描生成至少一个访问路径（ForeignPath节点），并且必须调用add_path把每一个这样的路径加入到baserel->pathlist中。我们推荐使用create_foreignscan_path来建立ForeignPath节点。该函数可以生成多个访问路径，例如一个具有合法pathkeys的路径表示一个预排序好的结果。每一个访问路径必须包含代价估计，并且能包含任何FDW的私有信息，这种信息被用来标识想要使用的指定扫描方法。
+更多信息请见第 58.4 节。
+ForeignScan *
+GetForeignPlan(PlannerInfo *root,
+RelOptInfo *baserel,
+Oid foreigntableid,
+ForeignPath *best_path,
+List *tlist,
+List *scan_clauses,
+Plan *outer_plan);
+从选择的外部访问路径创建一个ForeignScan计划节点。这个函数在查询规划的末尾被调用。参数和GetForeignRelSize的一样，外加选中的ForeignPath（在前面由GetForeignPaths、GetForeignJoinPaths或者GetForeignUpperPaths产生）、被计划节点发出的目标列表以及计划节点强制的限制子句以及被RecheckForeignScan执行的复查所使用的ForeignScan的外子计划（如果该路径是用于一个连接而非基本关系，则foreigntableid是InvalidOid）。
+这个函数必须创建并返回一个ForeignScan计划节点；我们推荐使用make_foreignscan来建立ForeignScan节点。
+更多信息请见第 58.4 节。
+void
+BeginForeignScan(ForeignScanState *node,
+int eflags);
+开始执行一个外部扫描。这个函数在执行器启动阶段被调用。它应该执行任何在扫描能够开始之前需要完成的初始化工作，但是并不开始执行真正的扫描（会在第一次调用IterateForeignScan时完成）。ForeignScanState节点已经被创建好了，但是它的fdw_state域仍然为 NULL。关于要被扫描的表的信息可以通过ForeignScanState节点访问（特殊地，从底层的ForeignScan计划节点，它包含任何由GetForeignPlan提供的FDW私有信息）。eflags包含描述执行器对该计划节点操作模式的标志位。
+注意当(eflags & EXEC_FLAG_EXPLAIN_ONLY)为真时，这个函数不应该执行任何外部可见的动作；它应当只做最少的事情来创建对ExplainForeignScan和EndForeignScan有效的节点状态。
+TupleTableSlot *
+IterateForeignScan(ForeignScanState *node);
+从外部源获得一行，将它放在一个元组表槽中返回（节点的ScanTupleSlot应当被用于此目的）。如果没有更多的行可用则返回 NULL。元组表槽基础设施允许一个物理的或者虚拟的元组被返回；在大部分情况下出于性能的考虑会倾向于选择后者。注意这是在一个短期存在的内存上下文中被调用的，该内存上下文会在调用之间被重置。如果你需要长期存在的存储，请在BeginForeignScan中创建内存上下文，或者使用节点的EState中的es_query_cxt。
+如果提供了fdw_scan_tlist目标列表，被返回的行必须匹配它，如果没有提供则它们必须匹配被扫描的外部表的行类型。如果选择优化掉不需要的列，你应该在那些列的位置上插入NULL，或者生成一个忽略了那些列的fdw_scan_tlist列表。
+注意PostgreSQL的执行器并不在乎被返回的行是否违背了定义在该外部表上的任何约束 — 但是规划器会在乎这一点，并且如果在外部表中有可见行不满足一个约束，规划器可能会错误地优化查询。如果当用户已经声明一个约束应该为真时它却被违背，最合适的处理可能是产生一个错误（就像在数据类型失配的情况下所作的那样）。
+void
+ReScanForeignScan(ForeignScanState *node);
+从头开始重启一个扫描。注意扫描所依赖的任何参数可能已经改变了值，因此新扫描不一定会返回完全相同的行。
+void
+EndForeignScan(ForeignScanState *node);
+结束扫描并释放资源。通常释放palloc过的内存并不重要，但是打开的文件和到远程服务器的连接等应该被清理。
+58.2.2. 用于扫描外部连接的 FDW 例程 #
+如果一个 FDW 支持远程执行外部连接（而不是先把两个表的数据取到本地然后做本地连接），它应该提供这个回调函数：
+void
+GetForeignJoinPaths(PlannerInfo *root,
+RelOptInfo *joinrel,
+RelOptInfo *outerrel,
+RelOptInfo *innerrel,
+JoinType jointype,
+JoinPathExtraData *extra);
+它为两个（或更多）同属于一台外部服务器的外部表的连接创建可能的访问路径。这个可选的函数会在查询规划过程中被调用。
+和GetForeignPaths一样，这个函数应该为提供的joinrel生成ForeignPath路径（用 create_foreign_join_path 构建它们），并且调用add_path把这些路径加入到该连接应该考虑的路径集合中。但是和GetForeignPaths不一样的是，不需要这个函数产生最少一个路径，因为涉及本地连接的路径总是可用的。
+注意为相同的连接关系将会重复地调用这个函数用来生成内外关系的不同组合；FDW 需要负责最小化其中重复的工作。
+注意，传递为extra->restrictlist的连接子句集合会根据内外关系的组合而变化。
+为joinrel生成的ForeignPath路径必须包含它使用的连接子句集合，
+规划器将在将ForeignPath路径转换为计划时使用这些子句，
+如果规划器选择它作为joinrel的最佳路径。
+如果一个ForeignPath路径被选中用于该连接，它将在整个连接处理中存在，为其中的成分表和子连接产生的路径将不会被使用。后续对该连接路径的处理大部分和扫描单个外部表的路径一样。一点不同是ForeignScan计划节点的scanrelid应该被设置为零，因为它表示的不是单个关系，而是用ForeignScan节点的fs_relids域来表示被连接的关系集合（后一个域会被核心规划器代码自动设置，不需要由 FDW 填充）。另一点不同是，由于一个远程连接的列列表无法在系统目录中找到，FDW 必须用一个合适的TargetEntry节点列表来填充fdw_scan_tlist，表示运行时它返回的元组中提供的列的集合。
+注意
+从PostgreSQL 16开始，
+fs_relids 包含外连接的范围表索引，
+如果此连接中涉及了任何外连接。新的字段
+fs_base_relids 仅包含基本关系索引，
+因此模仿了fs_relids 旧的语义。
+更多信息请见第 58.4 节。
+58.2.3. 用于规划扫描/连接后处理的 FDW 例程 #
+如果一个 FDW 支持执行远程的扫描/连接后处理，例如远程聚集，那么它应该提供这个回调函数：
+void
+GetForeignUpperPaths(PlannerInfo *root,
+UpperRelationKind stage,
+RelOptInfo *input_rel,
+RelOptInfo *output_rel,
+void *extra);
+为上层关系处理创建可能的访问路径，这是规划器针对所有扫描/连接后查询处理的术语，例如聚集、窗口函数、排序和表更新。在查询规划期间会调用这个可选的函数。当前，只有当该查询中涉及的所有基本关系都属于同一个 FDW 时才会调用这个函数。
+这个函数应该为 FDW 知道如何远程执行的任何扫描/连接后处理生成ForeignPath路径（用 create_foreign_upper_path 构建它们），并且调用add_path把这些路径加入到上层关系中。就GetForeignJoinPaths来说，并不要求这个函数在创建任何路径时都能成功，因为路径总是有可能涉及到本地处理。
+stage参数表示当前正在考虑的是哪一个扫描/连接后处理步骤。output_rel是接收表示这个步骤的路径的上层关系，而input_rel是表示这个步骤输入的关系。
+extra参数提供额外的细节，当前只会为UPPERREL_PARTIAL_GROUP_AGG或者UPPERREL_GROUP_AGG设置它，这种情况下它会指向一个GroupPathExtraData结构；或者对于UPPERREL_FINAL，在这种情况下它指向一个FinalPathExtraData结构。（注意被加入到output_rel中的ForeignPath路径通常对input_rel的路径没有直接的依赖，因为它们的处理被认为是在外部处理的。不过，检查为前一个处理步骤生成的路径有助于避免冗余的规划工作）。
+更多信息请见第 58.4 节。
+58.2.4. 更新外部表的FDW例程 #
+如果一个FDW支持可写的外部表，根据FDW的需要和功能，它应该提供某些或全部下列回调函数：
+void
+AddForeignUpdateTargets(PlannerInfo *root,
+Index rtindex,
+RangeTblEntry *target_rte,
+Relation target_relation);
+UPDATE和DELETE操作是在之前由表扫描函数取出的行上被执行的。FDW可能需要额外的信息（例如一个行ID或主键列的值）来保证它能够找到要更新或删除的准确行。要支持这些要求，这个函数可以在列列表中增加额外的隐藏或“junk”的目标列，它们在一个UPDATE或DELETE期间会被从外部表中获取。
+要做到这一点，构造一个Var以表示你需要的额外值，并将其传递给add_row_identity_var，与junk列的名称一起。
+(如果需要多个列，你可以多次执行此操作。)
+你必须为你需要的每个不同的Var选择一个不同的junk列名，除了Vars是相同的，以及除了varno字段能够并且应该共享一个列名。
+核心系统使用junk列名tableoid来表示表的tableoid列，
+ctid或ctidN表示ctid，
+wholerow表示以vartype = RECORD标记的整个行Var，
+以及wholerowN表示整个行Var，其vartype等于表的声明行类型。
+在你可以的情况下重新用这些名称（计划器将合并完全相同的junk列的重复请求）。
+如果你还需要除此之外的其他类型的junk列，也许明智的方法是选择以扩展名为前缀的名称，以避免与其他FDWs发生冲突。
+如果AddForeignUpdateTargets指针被设置为NULL，则不会有额外的目标表达式被加入（这将使得我们不可能实现DELETE操作，而UPDATE则还有可能是可行的，前提是FDW依赖一个未改变的主键来标识行）。
+List *
+PlanForeignModify(PlannerInfo *root,
+ModifyTable *plan,
+Index resultRelation,
+int subplan_index);
+执行外部表上插入、更新或删除所需的任何附加规划动作。这个函数生成FDW私有信息，该信息将被附加到执行该更新动作的ModifyTable计划节点。这个私有信息的形式必须是一个List，并将在执行阶段被传递给BeginForeignModify。
+root是规划器关于该查询的全局信息。
+plan是ModifyTable计划节点，它除了fdwPrivLists字段之外是完整的。
+resultRelation通过目标外部表的范围表索引来标识它。
+subplan_index标识这是ModifyTable计划节点的哪个目标，从零开始计数；
+如果你想要索引到plan节点的每个目标关系子结构中，请使用它。
+更多信息请见第 58.4 节。
+如果PlanForeignModify指针被设置为NULL，则不会有额外的计划时动作被执行，并且传递给BeginForeignModify的fdw_private列表也将为 NIL。
+void
+BeginForeignModify(ModifyTableState *mtstate,
+ResultRelInfo *rinfo,
+List *fdw_private,
+int subplan_index,
+int eflags);
+开始执行一个外部表修改操作。这个例程在执行器启动期间被调用。它应该执行任何先于实际表修改的初始化工作。随后，ExecForeignInsert/ExecForeignBatchInsert、ExecForeignUpdate或ExecForeignDelete将被调用以处理要插入、更新或删除的元组。
+mtstate是要被执行的ModifyTable计划节点的状态信息；通过这个结构可以得到关于计划和执行状态的全局数据。rinfo是描述目标外部表的ResultRelInfo结构（ResultRelInfo的ri_FdwState字段用于FDW来存储它在此操作中需要的任何私有状态）。fdw_private包含PlanForeignModify生成的私有数据。subplan_index标识这是ModifyTable计划节点的哪个目标。eflags包含描述执行器对该计划节点操作模式的标志位。
+注意当(eflags & EXEC_FLAG_EXPLAIN_ONLY)为真时，这个函数不应执行任何外部可见的动作；它只应该做最少的工作来使节点状态有效，以便于ExplainForeignModify和EndForeignModify使用。
+如果BeginForeignModify指针被设置为NULL，在执行器启动期间将不会采取任何动作。
+TupleTableSlot *
+ExecForeignInsert(EState *estate,
+ResultRelInfo *rinfo,
+TupleTableSlot *slot,
+TupleTableSlot *planSlot);
+插入一个元组到外部表。estate是查询的全局执行状态。rinfo是描述目标外部表的ResultRelInfo结构。slot包含要被插入的元组；它将匹配外部表的行类型定义。planSlot包含由ModifyTable计划节点的子计划生成的元组；它与slot不同，可能包含额外的“junk”列（INSERT情况通常不关心planSlot，但是为了完整性还是在这里提供它）。
+返回值可以是一个包含实际被插入的数据的槽（这可能会和所提供的数据不同，例如一个触发器动作的结果），或者为 NULL 表示实际没有插入行（还是触发器的结果）。被传入的slot可以被重用于这个目的。
+在返回槽中的数据只有在INSERT语句具有一个RETURNING子句或包括一个视图WITH CHECK OPTION时；或者如果外部表具有一个AFTER ROW触发器时才被使用。
+触发器要求所有的列，但是 FDW 可以选择优化成根据RETURNING子句的内容或WITH CHECK OPTION约束返回某些或全部列。
+不管怎样，某些槽必须被返回来指示成功，或者查询报告的行计数将会是错误的。
+如果ExecForeignInsert指针被设置为NULL，尝试向外部表插入将会失败并报告一个错误消息。
+请注意，在外表上将路由元组插入外表分区或执行 COPY FROM 时也会调用此函数，在这种情况下，它的调用方式与INSERT中的情况有所不同。
+请参阅下面所述的允许 FDW 支持的回调函数。
+TupleTableSlot **
+ExecForeignBatchInsert(EState *estate,
+ResultRelInfo *rinfo,
+TupleTableSlot **slots,
+TupleTableSlot **planSlots,
+int *numSlots);
+将多个元组批量插入外表。
+参数与ExecForeignInsert相同，除了slots 和 planSlots包含多个元组，并且*numSlots指定这些数组中的元组的数量。
+返回值是一个槽的数组，包含实际插入的数据（这可能与提供的数据不同，例如作为触发器活动的结果）。
+传入的slots可以重复用于此目的。
+成功插入元组的数量以*numSlots返回。
+只有当INSERT语句涉及到WITH CHECK OPTION视图时，返回槽中的数据才会被使用；或者如果外表有一个AFTER ROW触发器时。
+触发器需要所有列，但是FDW可以根据WITH CHECK OPTION约束的内容选择优化返回部分或全部列。
+如果ExecForeignBatchInsert或GetForeignModifyBatchSize指针被设置为NULL，尝试插入外表将使用ExecForeignInsert。
+如果INSERT有RETURNING子句，这个函数不被使用。
+请注意，在外表上将路由元组插入外表分区或执行 COPY FROM 时也会调用此函数，在这种情况下，它的调用方式与INSERT中的情况有所不同。
+请参阅下面所述的允许 FDW 支持的回调函数。
+int
+GetForeignModifyBatchSize(ResultRelInfo *rinfo);
+报告单个ExecForeignBatchInsert调用可以为指定外表处理的元组的最大数量。
+执行器传递最多给定数量的元组到ExecForeignBatchInsert。
+rinfo是描述目标外表的ResultRelInfo结构体。
+FDW应该为用户提供一个外部服务器和/或外部表选项来设置这个值，或者一些硬编码的值。
+如果ExecForeignBatchInsert或GetForeignModifyBatchSize指针被设置为NULL，尝试插入到外表将使用ExecForeignInsert。
+TupleTableSlot *
+ExecForeignUpdate(EState *estate,
+ResultRelInfo *rinfo,
+TupleTableSlot *slot,
+TupleTableSlot *planSlot);
+更新外部表中的一个元组。
+estate是查询的全局执行状态。
+rinfo是描述目标外部表的ResultRelInfo结构。
+slot包含元组的新数据；它将匹配外部表的行类型定义。
+planSlot包含由ModifyTable计划节点的子计划生成的元组。
+不像slot，此元组仅包含查询所更改的列的新值，因此不依赖外表的属性号来索引planSlot。
+此外，planSlot通常包含额外的“junk”列。
+特殊地，任何AddForeignUpdateTargets所要求的junk列在这个槽中都是有效的。
+返回值可以是一个包含实际被更新的数据的槽（这可能会和所提供的数据不同，例如一个触发器动作的结果），或者为 NULL 表示实际没有更新行（还是触发器的结果）。被传入的slot可以被重用于这个目的。
+在返回槽中的数据只有在UPDATE语句具有一个RETURNING子句或者包括一个视图WITH CHECK OPTION；或者如果外部表具有一个AFTER ROW触发器时才被使用。
+触发器要求所有的列，但是 FDW 应该选择优化成根据RETURNING子句的内容或WITH CHECK OPTION约束返回某些或全部列。
+不管怎样，某些槽必须被返回来指示成功，或者查询报告的行计数将会是错误的。
+如果ExecForeignUpdate指针被设置为NULL，尝试更新外表将会失败并报告一个错误消息。
+TupleTableSlot *
+ExecForeignDelete(EState *estate,
+ResultRelInfo *rinfo,
+TupleTableSlot *slot,
+TupleTableSlot *planSlot);
+从外部表删除一个元组。
+estate是查询的全局执行状态。
+rinfo是描述目标外部表的ResultRelInfo结构。
+slot在调用时不包含任何有用的东西，但是可以被用于保持被返回的元组。
+planSlot包含由ModifyTable计划节点的子计划生成的元组；特殊地，它将携带AddForeignUpdateTargets所要求的任意垃圾列。垃圾列被用来标识要被删除的元组。
+返回值可以是一个包含被删除行的槽，或者为 NULL 表示没有删除行（通常是触发器的结果）。被传入的slot可以被重用于这个目的。
+在返回槽中的数据只有在DELETE查询具有一个RETURNING子句或者外部表具有一个AFTER ROW触发器时才被使用。
+触发器要求所有的列，但是 FDW 可以选择根据RETURNING子句的内容优化返回某些或全部列。
+不管怎样，某些槽必须被返回来指示成功，或者查询报告的行计数将会是错误的。
+如果ExecForeignDelete指针被设置为NULL，尝试从外部表中删除将会失败并报告一个错误消息。
+void
+EndForeignModify(EState *estate,
+ResultRelInfo *rinfo);
+结束表更新并释放资源。通常释放 palloc 的内存并不重要，但是打开的文件和到远程服务器的连接等应当被清除。
+如果EndForeignModify指针被设置为NULL，在执行器关闭期间不会采取任何动作。
+被INSERT或者COPY FROM插入到分区表中的元组会被路由到分区。如果一个 FDW 支持可路由的外部表分区，它还应该提供下面的回调函数。当在外部表上执行COPY FROM时，也会调用这些函数。
+void
+BeginForeignInsert(ModifyTableState *mtstate,
+ResultRelInfo *rinfo);
+开始在外部表上执行插入操作。
+当外部表被选中作为元组路由的分区以及COPY FROM命令中指定的目标时，在第一个元组被插入到该外部表之前会调用这个例程。
+它应该执行实际插入之前所需的任何初始化工作。
+随后，为每一个被插入到该外部表的元组都将调用ExecForeignInsert或ExecForeignBatchInsert。
+mtstate是正在被执行的ModifyTable计划节点的总体状态，通过这个结构可以得到有关计划和执行的全局数据。rinfo是描述目标外部表的ResultRelInfo结构（对于 FDW，ResultRelInfo的ri_FdwState字段用来存放这个操作所需要的私有状态）。
+当这个例程被一个COPY FROM命令调用时，不会提供mtstate中与计划相关的全局数据，并且后续为每个插入元组调用的ExecForeignInsert的planSlot参数为NULL，不管该外部表是为元组路由选中的分区还是命令中指定的目标。
+如果BeginForeignInsert指针被设置为NULL，则不会采取初始化动作。
+请注意，如果 FDW 不支持在外表上的可路由外表分区和/或执行 COPY FROM ，这个函数或 ExecForeignInsert/ExecForeignBatchInsert 后续的调用必须根据需要发出错误。
+void
+EndForeignInsert(EState *estate,
+ResultRelInfo *rinfo);
+结束插入操作并释放资源。通常释放palloc的内存并不重要，但是打开的文件和与远程服务器的连接应该被清除。
+如果EndForeignInsert指针被设置为NULL，则不会采取终止动作。
+int
+IsForeignRelUpdatable(Relation rel);
+报告指定的外部表支持哪些更新操作。返回值应该是一个规则事件编号的位掩码，它指示了哪些操作被外部表支持，它使用CmdType枚举，即：
+(1 << CMD_UPDATE) = 4表示UPDATE、
+(1 << CMD_INSERT) = 8表示INSERT以及
+(1 << CMD_DELETE) = 16表示DELETE。
+如果IsForeignRelUpdatable指针被设置为NULL，而FDW提供了ExecForeignInsert、ExecForeignUpdate或ExecForeignDelete，则外部表分别被假定为可插入、可更新或可删除。只有在FDW支持某些表是可更新的而某些不是可更新的时候，才需要这个函数（即便如此，也允许在执行例程中抛出一个错误而不是在这个函数中检查。但是，这个函数被用来决定显示在information_schema视图中的可更新性）。
+一些对于外部表的插入、更新和删除可以通过实现另一组接口来优化。普通的插入、更新和删除接口会从远程服务器取得行，然后一次修改其中一行。在某些情况下，这种逐行的方式是必要的，但是可能效率不高。
+如果有可能让外部服务器判断哪些行可以直接修改而无需先检索它们，并且没有本地结构会影响该操作（行级本地触发器，存储生成的列，或来自父视图的WITH CHECK OPTION约束），那么可以让整个操作在远程服务器上执行。下面介绍的接口能让这种做法变成可能。
+bool
+PlanDirectModify(PlannerInfo *root,
+ModifyTable *plan,
+Index resultRelation,
+int subplan_index);
+决定在远程服务器上执行直接修改是否安全。如果安全，执行所需的规划动作然后返回true。否则返回false。这个可选的函数在查询规划期间被调用。如果这个函数成功，在执行阶段将会调用BeginDirectModify、IterateDirectModify和EndDirectModify。否则，对表的修改将采用上文描述的表更新函数来执行。参数和PlanForeignModify相同。
+要在远程服务器上执行直接修改，这个函数必须用一个ForeignScan计划节点（它在远程服务器上执行直接修改）重写目标子计划。
+ForeignScan的operation和resultRelation字段必须被合适地设置。
+operation必须被设置为与语句类型相对应的CmdType枚举值（也就是，CMD_UPDATE 对 UPDATE、CMD_INSERT 对 INSERT、以及CMD_DELETE 对 DELETE），并且resultRelation 参数必须拷贝到 resultRelation 字段。
+请参见第 58.4 节以获取更多信息。
+如果PlanDirectModify指针被设置为NULL，不会尝试在远程服务器上执行直接修改。
+void
+BeginDirectModify(ForeignScanState *node,
+int eflags);
+准备在远程服务器上执行一次直接修改。这个函数会在执行器启动时被调用。它应该执行直接修改所需的任何初始化工作（应该在第一次IterateDirectModify调用之前完成）。ForeignScanState节点已经被创建，但是它的fdw_state域仍然为 NULL。有关要被修改的表的信息可以通过ForeignScanState节点（具体地，从底层的ForeignScan计划节点，它包含了PlanDirectModify提供的 FDW-私有信息）访问。eflags包含描述执行器对于这个计划节点操作模式的标志位。
+注意当(eflags & EXEC_FLAG_EXPLAIN_ONLY)为真时，这个函数不应该执行任何外部可见的动作。它应当只做最少的工作让该节点状态对ExplainDirectModify和EndDirectModify有效。
+如果BeginDirectModify指针被设置为NULL，不会尝试在远程服务器上执行直接修改。
+TupleTableSlot *
+IterateDirectModify(ForeignScanState *node);
+当INSERT、UPDATE或者DELETE查询没有RETURNING子句时，完成远程服务器上的直接修改后返回 NULL。
+当查询有该子句时，取出一个包含RETURNING计算所需数据的结果，用一个元组表槽返回它（节点的ScanTupleSlot应被用于这一目的）。
+实际被插入、更新或者删除的数据必须被存储在node->resultRelInfo->ri_projectReturning->pi_exprContext->ecxt_scantuple中。
+如果没有更多行可用，则返回 NULL。
+注意这个函数会在一个短期生存的内存上下文中被调用，该上下文会在两次调用之间被重置。
+如果需要一个长期存在的存储，可以在BeginDirectModify中创建一个内存上下文，或者使用该节点的EState中的es_query_cxt。
+如果提供了fdw_scan_tlist目标列表，则被返回的行必须匹配它。否则，被返回的行必须匹配被更新的外部表的行类型。如果选择优化掉RETURNING计算不需要的列，应该在这些列的位置上插入空值，或者生成一个忽略这些列的fdw_scan_tlist列表。
+不管该查询是否具有RETURNING子句，查询所报告的行计数必须由 FDW 本身增加。当查询没有该子句时，FDW 还必须为EXPLAIN ANALYZE情况下的ForeignScanState节点增加行计数。
+如果IterateDirectModify指针被设置为NULL，不会尝试在远程服务器上执行直接修改。
+void
+EndDirectModify(ForeignScanState *node);
+在远程服务器上的直接修改后进行清理。通常释放用 palloc 分配的内存并不重要，但是诸如打开的文件和到远程服务器的连接应该被清除。
+如果EndDirectModify指针被设置为NULL，不会尝试在远程服务器上执行直接修改。
+58.2.5. FDW Routines for TRUNCATE #
+void
+ExecForeignTruncate(List *rels,
+DropBehavior behavior,
+bool restart_seqs);
+截断外表。该函数在外表上执行TRUNCATE时被调用。rels是要截断的外表的Relation数据结构的列表。
+behavior是DROP_RESTRICT或DROP_CASCADE，分别表示在原始的TRUNCATE命令中请求了RESTRICT或CASCADE选项。
+如果restart_seqs为true，原始的TRUNCATE命令请求RESTART IDENTITY行为，否则请求CONTINUE IDENTITY行为。
+注意在原始TRUNCATE命令中指定的ONLY选项不会传递给ExecForeignTruncate。这个行为类似于外表上的SELECT、UPDATE和DELETE的回调函数。
+对于要被截断的外表的每个外表服务器，ExecForeignTruncate被调用一次。这意味着包含在rels中的所有外表必须属于相同的服务器。
+如果ExecForeignTruncate指针被设置为NULL，截断外表的尝试将失败并带有错误消息。
+58.2.6. 用于行锁定的FDW例程 #
+如果一个FDW希望支持后期行锁定（如第 58.5 节中所述），它必须提供下列回调函数：
+RowMarkType
+GetForeignRowMarkType(RangeTblEntry *rte,
+LockClauseStrength strength);
+报告要对一个外表使用哪个行标记选项。rte是该表的RangeTblEntry节点，而strength描述FOR UPDATE/SHARE子句（如果有）所要求的锁强度。结果必须是RowMarkType枚举类型的一个成员。
+这个函数在查询规划期间会为每一个出现在UPDATE、DELETE或者SELECT FOR UPDATE/SHARE查询中的外表调用，并且该外表不是UPDATE和DELETE的目标。
+如果GetForeignRowMarkType指针被设置为NULL，将总是使用ROW_MARK_COPY选项。（这意味着将不会调用RefetchForeignRow，因此也不必提供它。）
+请参见第 58.5 节以获取更多信息。
+void
+RefetchForeignRow(EState *estate,
+ExecRowMark *erm,
+Datum rowid,
+TupleTableSlot *slot,
+bool *updated);
+从外部表中重新取得一个元组槽，如有必要先锁定它。estate是该查询的全局执行状态。erm是描述目标外部表以及要获取的行锁类型（如果有）的ExecRowMark结构。rowid标识要取得的元组。slot在调用时不包含有用内容，但可用于保存返回的元组。updated是一个输出参数。
+此函数应将元组存储到提供的槽中，或者在无法获得行锁时清除该槽。要获得的行锁由erm->markType定义，它是之前由GetForeignRowMarkType返回的值。（ROW_MARK_REFERENCE标识只重新取得元组但不获得任何锁，这个例程将不会看到ROW_MARK_COPY。）
+此外，如果取得的是一个更新过的版本而不是之前获得的同一版本，*updated应被设置为true。（如果FDW无法确定这一点，推荐总是返回true。）
+注意在默认情况下，获取行锁失败应该导致产生错误。如果erm->waitPolicy指定了SKIP LOCKED，只有返回空槽才是合适的。
+rowid是要被重新取得的行之前读到的ctid值。尽管rowid值被作为Datum传递，但是目前它只能被读作tid。选择该函数API是希望未来能允许其他的行ID数据类型。
+如果RefetchForeignRow指针被设置为NULL，重新取得行的尝试将会失败并伴随有一个错误消息。
+更多信息请见第 58.5 节。
+bool
+RecheckForeignScan(ForeignScanState *node,
+TupleTableSlot *slot);
+重新检查之前返回的元组是否仍然匹配相关的扫描和连接条件，并且可能提供该元组的一个修改版本。对于不执行连接下推的外部数据包装器，通常把这设置为NULL并且恰当地设置fdw_recheck_quals会更方便。不过当外部连接被下推时，把与所有基表相关的检查重新应用在结果元组上是不够的，即便所有需要的属性都存在也是如此，因为匹配某个条件失败可能会导致某些属性变成 NULL，而不是没有元组被返回。RecheckForeignScan能够重新检查条件，并且在它们仍然满足时返回真，否则返回假，但是它也能够在提供的槽中存储一个替换元组。
+要实现连接下推，外部数据包装器通常将构造一个可替代的本地连接计划，它只被用来做重新检查。这将变成ForeignScan的外子计划。在需要一次重新检查时，这个子计划可以被执行并且结果元组可以被存储在槽中。这个计划不需要效率很高，因为不会有基表返回超过一行。例如，它可以把所有的连接实现为嵌套循环。函数GetExistingLocalJoinPath可以被用来在已有的路径中搜索合适的本地连接路径，它可以被用作替换的本地连接计划。GetExistingLocalJoinPath会在指定连接关系的路径列表中搜索一个非参数化路径（如果没有找到这样的路径，它会返回 NULL，这种情况下外部数据包装器可以自行构造本地路径或者可以选择不为这个连接创建访问路径）。
+58.2.7. EXPLAIN的FDW例程 #
+void
+ExplainForeignScan(ForeignScanState *node,
+ExplainState *es);
+为一个外部表扫描打印额外的EXPLAIN输出。这个函数可以调用ExplainPropertyText和相关函数来向EXPLAIN输出中增加域。es中的标志域可以被用来决定什么将被打印，并且ForeignScanState节点的状态可以被检查来为EXPLAIN ANALYZE提供运行时统计数据。
+如果ExplainForeignScan指针被设置为NULL，在EXPLAIN期间不会打印任何额外的信息。
+void
+ExplainForeignModify(ModifyTableState *mtstate,
+ResultRelInfo *rinfo,
+List *fdw_private,
+int subplan_index,
+struct ExplainState *es);
+为一个外部表更新打印额外的EXPLAIN输出。这个函数可以调用ExplainPropertyText和相关函数来向EXPLAIN输出中增加域。es中的标志域可以被用来决定什么将被打印，并且ModifyTableState节点的状态可以被检查来为EXPLAIN ANALYZE提供运行时统计数据。前四个参数和BeginForeignModify相同。
+如果ExplainForeignModify指针被设置为NULL，在EXPLAIN期间不会打印任何额外的信息。
+void
+ExplainDirectModify(ForeignScanState *node,
+ExplainState *es);
+为远程服务器上的直接修改打印额外的EXPLAIN输出。这个函数可以调用ExplainPropertyText和相关函数来为EXPLAIN输出增加字段。es中的标志字段可以用来判断要打印什么，并且在EXPLAIN ANALYZE情况下可以观察ForeignScanState节点的状态来提供运行时统计信息。
+如果ExplainDirectModify指针被设置为NULL，EXPLAIN期间不会打印出额外的信息。
+58.2.8. ANALYZE的FDW例程 #
+bool
+AnalyzeForeignTable(Relation relation,
+AcquireSampleRowsFunc *func,
+BlockNumber *totalpages);
+当ANALYZE在外部表上执行时会调用这个函数。如果FDW可以为这个外部表收集统计信息，它应该返回true，并提供一个指向将从func中的表上收集采样行的函数的指针，以及在totalpages中页面的表大小估计值。否则，返回false。
+如果FDW不支持为任何表收集统计信息，AnalyzeForeignTable指针可以设置为NULL。
+如果提供，采样收集函数必须具有签名
+int
+AcquireSampleRowsFunc(Relation relation,
+int elevel,
+HeapTuple *rows,
+int targrows,
+double *totalrows,
+double *totaldeadrows);
+应该从该表上收集最多targrows行的一个随机采样并将其存放到调用者提供的rows数组中。实际被收集的行的数量必须被返回。另外，将表中有效行和死亡行的总数存储到输出参数totalrows和totaldeadrows中（如果FDW没有死亡行的概念，将totaldeadrows设置为0）。
+58.2.9. IMPORT FOREIGN SCHEMA的FDW例程 #
+List *
+ImportForeignSchema(ImportForeignSchemaStmt *stmt, Oid serverOid);
+取得一个外部表创建命令的列表。在执行IMPORT FOREIGN SCHEMA时会调用这个函数，并且会把该语句的解析树以及要使用的外部服务器的OID传递给它。它应该返回一个C字符串的列表，每一个必须包含一个CREATE FOREIGN TABLE命令。这些命令将被核心服务器解析和执行。
+在ImportForeignSchemaStmt结构中，remote_schema是要从其中导入这些表的远程模式的名称。list_type标识如何过滤表名：FDW_IMPORT_SCHEMA_ALL表示该远程模式中的所有表都应该被导入（这种情况下table_list为空），FDW_IMPORT_SCHEMA_LIMIT_TO表示只包括table_list中列出的表，而FDW_IMPORT_SCHEMA_EXCEPT则表示排除table_list中列出的表。options是一个用于该导入处理的选项列表。选项的含义由FDW决定。例如，一个FDW可以用一个选项来定义是否应该导入列的NOT NULL属性。这些选项不需要与那些FDW支持的数据库对象选项有什么关系。
+FDW可能会忽略ImportForeignSchemaStmt的local_schema域，因为核心服务器会自动地向解析好的CREATE FOREIGN TABLE命令中插入本地模式的名称。
+FDW也不必担心实现list_type以及table_list所指定的过滤，因为核心服务器将自动根据那些选项跳过为被排除的表所返回的命令。不过，起初就避免为被排除的表创建命令当然更好。函数IsImportableForeignTable()可以用来测试一个给定的外部表名是否能通过该过滤器。
+如果FDW不支持导入表定义，ImportForeignSchema指针可以被设置为NULL。
+58.2.10. 并行执行的FDW例程 #
+ForeignScan节点可以选择支持并行执行。一个并行的ForeignScan将在多个进程中被执行并且在相互合作的进程中每一个元组必须只被返回一次。要做到这样，进程可以通过动态共享内存的固定尺寸块来协作。并不保证在每一个进程中这部分共享内存都被映射到相同的地址，因此不能包含指针。下面的函数通常都是可选的，但是如果要支持并行执行就必须提供其中的大部分。
+bool
+IsForeignScanParallelSafe(PlannerInfo *root, RelOptInfo *rel,
+RangeTblEntry *rte);
+测试一个扫描是否可以在一个并行工作者中被执行。只有当规划器相信可以使用并行计划时才会调用这个函数，如果该扫描在并行工作者中可以安全运行这个函数应该返回真。如果远程数据源具有事务语义，情况通常都不是这样，除非工作者到数据的连接能够以某种方式共享与领导者相同的事务环境。
+如果没有定义这个函数，则假定该扫描必须被放置在并行领导者中。注意返回真并不意味着该扫描本身可以被并行完成，只是说明该扫描可以在一个并行工作者中执行。因此，即便当不支持并行执行时，定义这个方法也是有用的。
+Size
+EstimateDSMForeignScan(ForeignScanState *node, ParallelContext *pcxt);
+估算并行操作所需的动态共享内存的数量。这可能比实际要用的数量更大，但是绝不能更小。返回值的单位是字节。这个函数是可选的，并且在不需要时可以省略。但是如果它被省略，接下来的三个函数也必须被省略，因为不会为FDW分配共享内存。
+void
+InitializeDSMForeignScan(ForeignScanState *node, ParallelContext *pcxt,
+void *coordinate);
+初始化并行操作所需的动态共享内存。coordinate指向一块共享内存区域，其尺寸等于EstimateDSMForeignScan的返回值。这个函数是可选的，并且在不需要时可以省略。
+void
+ReInitializeDSMForeignScan(ForeignScanState *node, ParallelContext *pcxt,
+void *coordinate);
+当外部扫描计划将要被重新扫描时，重新初始化并行操作所需的动态共享内存。这个函数是可选的，并且在不需要时可以省略。推荐的做法是这个函数只重置共享状态，而ReScanForeignScan函数仅重置本地状态。当前，这个函数将在ReScanForeignScan之前被调用，但是最好不要依赖于这种顺序。
+void
+InitializeWorkerForeignScan(ForeignScanState *node, shm_toc *toc,
+void *coordinate);
+基于领导者在InitializeDSMForeignScan期间建立的共享状态初始化并行工作者的本地状态。这个函数是可选的，并且在不需要时可以省略。
+void
+ShutdownForeignScan(ForeignScanState *node);
+在预见到节点将不会被执行完时释放资源。这个函数不会在所有的情况中执行，有时会在没有先调用这个函数之前调用EndForeignScan。由于在这个回调被调用之后并行查询使用的DSM段将被销毁，希望在DSM段消失前采取某种行动的外部数据包装器应该实现这个方法。
+58.2.11. FDW Routines for Asynchronous Execution #
+ForeignScan节点能够，可选地，支持异步执行，就像src/backend/executor/README中所描述的那样。
+以下函数都是可选的，但是如果要支持异步执行，则都是必需的。
+bool
+IsForeignPathAsyncCapable(ForeignPath *path);
+测试给定的ForeignPath路径是否可以异步扫描底层外部关系。
+当给定路径是AppendPath路径的直接子路径，并且计划器认为异步执行提高性能时，才会在查询计划结束时调用该函数。
+如果给出的路径能够异步扫描外部关系，则将返回真。
+如果这个函数没有被定义，则假定给定的路径使用IterateForeignScan扫描外部关系。
+(这意味着下面描述的回调函数将永远不会被调用，因此它们也不需要提供。)
+void
+ForeignAsyncRequest(AsyncRequest *areq);
+从ForeignScan节点异步生成一个元组。
+areq是描述ForeignScan节点和父Append节点请求元组的AsyncRequest结构。
+该函数应该将元组存储在areq->result指定的槽中，并将areq->request_complete设置为true；或者如果它需要等待核心服务器外部的事件，例如网络I/O，并且不能立刻生成任何元组，则将标记设置为false，并将areq->callback_pending设置为true，以便ForeignScan节点从下面描述的回调函数中获取回调。
+如果没有更多的元组可用，则将槽位设置为NULL或空槽位，并将areq->request_complete标志设置为true。
+建议使用ExecAsyncRequestDone或ExecAsyncRequestPending来设置areq中的输出参数。
+void
+ForeignAsyncConfigureWait(AsyncRequest *areq);
+配置一个ForeignScan节点希望等待的文件描述符事件。
+只有当ForeignScan节点具有areq->callback_pending标志设置时，这个函数将会被调用，并且应该将事件添加到由areq描述的父Append节点的as_eventset中。
+更多的信息，请参阅src/backend/executor/execAsync.c中针对ExecAsyncConfigureWait的注释。
+当文件描述符事件发生时，ForeignAsyncNotify将被调用。
+void
+ForeignAsyncNotify(AsyncRequest *areq);
+处理已经发生的相关事件，然后从ForeignScan节点异步生成一个元组。
+该函数将设置areq中的输出参数，与ForeignAsyncRequest的方法相同。
+58.2.12. 用于路径重新参数化的FDW例程 #
+List *
+ReparameterizeForeignPathByChild(PlannerInfo *root, List *fdw_private,
+RelOptInfo *child_rel);
+在将一个由给定子关系child_rel的最顶层父关系参数化的路径转换成由该子关系参数化的路径时会调用这个函数。该函数用于重新参数化任意路径或转化一个ForeignPath的给定fdw_private成员中保存的任意表达式节点。该回调可能会根据需要使用reparameterize_path_by_child、adjust_appendrel_attrs或adjust_appendrel_attrs_multilevel。
+上一页 上一级 下一页58.1. 外部数据包装器函数 起始页 58.3. 外部数据包装器助手函数

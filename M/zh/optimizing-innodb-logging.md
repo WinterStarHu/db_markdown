@@ -1,0 +1,127 @@
+# 8.5.4 优化 InnoDB 重做日志记录_MySQL 8.0 参考手册
+
+8.5.4 优化 InnoDB 重做日志记录_MySQL 8.0 参考手册
+Skip to Main Content
+Documentation
+MySQL手册
+MySQL企业版
+工作台
+InnoDB集群
+MySQL NDB集群
+连接器
+Section Menu:
+Documentation Home
+MySQL 8.0 参考手册
+前言和法律声明
+第一章 一般信息
+第 2 章安装和升级 MySQL
+第 3 章教程
+第 4 章 MySQL 程序
+第 5 章 MySQL 服务器管理
+第 6 章 安全
+第 7 章备份与恢复
+第8章优化
+8.1 优化概述
+8.2 优化SQL语句
+8.3 优化和索引
+8.4 优化数据库结构
+8.5 优化 InnoDB 表
+8.5.1 优化 InnoDB 表的存储布局1
+8.5.2 优化 InnoDB 事务管理1
+8.5.3 优化 InnoDB 只读事务1
+8.5.4 优化 InnoDB 重做日志记录1
+8.5.5 InnoDB 表的批量数据加载1
+8.5.6 优化 InnoDB 查询1
+8.5.7 优化 InnoDB DDL 操作1
+8.5.8 优化 InnoDB 磁盘 I/O1
+8.5.9 优化 InnoDB 配置变量1
+8.5.10 为多表系统优化 InnoDB1
+8.6 优化 MyISAM 表
+8.7 优化 MEMORY 表
+8.8 了解查询执行计划
+8.9 控制查询优化器
+8.10 缓冲和缓存
+8.11 优化锁定操作
+8.12 优化MySQL服务器
+8.13 测量性能（基准测试）
+8.14 查看服务器线程（进程）信息
+第9章语言结构
+第 10 章字符集、排序规则、Unicode
+第 11 章数据类型
+第 12 章函数和运算符
+第 13 章 SQL 语句
+第14章MySQL数据字典
+第 15 章 InnoDB 存储引擎
+第 16 章替代存储引擎
+第十七章复制
+第十八章 组复制
+第十九章MySQL Shell
+第 20 章使用 MySQL 作为文档存储
+第21章InnoDB Cluster
+第 22 章 InnoDB 副本集
+第 23 章 MySQL NDB Cluster 8.0
+第24章分区
+第25章存储对象
+第 26 章 INFORMATION_SCHEMA 表
+第 27 章 MySQL 性能模式
+第 28 章 MySQL 系统模式
+第 29 章连接器和 API
+第30章MySQL企业版
+第31章MySQL工作台
+第 32 章 OCI 市场上的 MySQL
+附录 A MySQL 8.0 常见问题解答
+附录 B 错误信息和常见问题
+附录 C 索引
+MySQL 词汇表
+MySQL 8.0 参考手册  / 第8章优化  / 8.5 优化 InnoDB 表  /
+8.5.4 优化 InnoDB 重做日志记录
+8.5.4 优化 InnoDB 重做日志记录
+考虑以下用于优化重做日志记录的准则：
+增加重做日志文件的大小。当
+InnoDB重做日志文件写满时，它必须在检查点将缓冲池的修改内容写入磁盘。小的重做日志文件会导致许多不必要的磁盘写入。
+从 MySQL 8.0.30 开始，重做日志文件大小由
+innodb_redo_log_capacity
+设置决定。InnoDB尝试维护 32 个相同大小的重做日志文件，每个文件等于 1/32 *
+innodb_redo_log_capacity。因此，更改innodb_redo_log_capacity
+设置会更改重做日志文件的大小。
+在 MySQL 8.0.30 之前，重做日志文件的大小和数量是使用
+innodb_log_file_size和
+innodb_log_files_in_group
+变量配置的。
+有关修改重做日志文件配置的信息，请参阅第 15.6.5 节，“重做日志”。
+考虑增加
+日志缓冲区的大小。大型日志缓冲区使大型
+事务无需在事务提交之前将日志写入磁盘即可运行。因此，如果您有更新、插入或删除许多行的事务，那么增大日志缓冲区可以节省磁盘 I/O。日志缓冲区大小使用
+innodb_log_buffer_size
+配置选项配置，可以在 MySQL 8.0 中动态配置。
+配置
+innodb_log_write_ahead_size
+配置选项以避免“ read-on-write ”。此选项定义重做日志的预写块大小。设置
+innodb_log_write_ahead_size
+为匹配操作系统或文件系统缓存块大小。当由于重做日志的预写块大小与操作系统或文件系统缓存块大小不匹配而导致重做日志块未完全缓存到操作系统或文件系统时，会发生写时读。
+的有效值为
+日志文件块大小 (2 n )innodb_log_write_ahead_size
+的倍数。最小值为日志文件块大小 (512)。指定最小值时不会发生预写。最大值等于该
+值。如果您为其指定的值
+大于该
+值，则该
+设置将被截断为该
+值。
+InnoDBInnoDBinnodb_page_sizeinnodb_log_write_ahead_sizeinnodb_page_sizeinnodb_log_write_ahead_sizeinnodb_page_sizeinnodb_log_write_ahead_size
+相对于操作系统或文件系统缓存块大小将值
+设置
+得过低会导致写入时读取。fsync由于一次写入多个块，
+将值设置得太高可能会对日志文件写入的性能产生轻微影响
+。
+MySQL 8.0.11 引入了专用的日志写入线程，用于将重做日志记录从日志缓冲区写入系统缓冲区，并将系统缓冲区刷新到重做日志文件。以前，单个用户线程负责这些任务。从 MySQL 8.0.22 开始，您可以使用该
+innodb_log_writer_threads
+变量启用或禁用日志写入器线程。专用日志写入线程可以在高并发系统上提高性能，但对于低并发系统，禁用专用日志写入线程可以提供更好的性能。
+优化等待刷新重做的用户线程对自旋延迟的使用。自旋延迟有助于减少延迟。在低并发期间，减少延迟可能不太重要，在这些期间避免使用自旋延迟可能会降低能耗。在高并发期间，您可能希望避免在自旋延迟上消耗处理能力，以便它可以用于其他工作。以下系统变量允许设置高水位线值和低水位线值，这些值定义了自旋延迟的使用边界。
+innodb_log_wait_for_flush_spin_hwm：定义最大平均日志刷新时间，超过该时间用户线程在等待刷新重做时不再旋转。默认值为 400 微秒。
+innodb_log_spin_cpu_abs_lwm：定义最小 CPU 使用量，低于此值用户线程在等待刷新重做时不再旋转。该值表示为 CPU 核心使用率的总和。例如，默认值 80 是单个 CPU 内核的 80%。在具有多核处理器的系统上，值 150 表示一个 CPU 内核的 100% 使用率加上第二个 CPU 内核的 50% 使用率。
+innodb_log_spin_cpu_pct_hwm：定义最大 CPU 使用率，超过该值用户线程在等待刷新重做时不再自旋。该值表示为所有 CPU 内核的组合总处理能力的百分比。默认值为 50%。例如，两个 CPU 内核的 100% 使用率是具有四个 CPU 内核的服务器上组合 CPU 处理能力的 50%。
+配置
+innodb_log_spin_cpu_pct_hwm
+选项尊重处理器亲和力。例如，如果服务器有 48 个内核，但
+mysqld进程仅固定到四个 CPU 内核，则其他 44 个 CPU 内核将被忽略。
+© Mysql 中文网

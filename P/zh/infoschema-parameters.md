@@ -1,0 +1,81 @@
+# 35.33. parameters
+
+35.33. parameters
+版本：
+纠错本页面
+搜索
+目录导航
+❮
+❯
+35.33. parameters #
+视图parameters包含当前数据库中所有函数的参数（参数）的有关信息。只有那些当前用户能够访问（作为拥有者或具有某些特权）的函数才会被显示。
+表 35.31. parameters 列
+列类型
+描述
+specific_catalog sql_identifier
+包含该函数的数据库名称（总是当前数据库）
+specific_schema sql_identifier
+包含函数的模式名称
+specific_name sql_identifier
+函数的“特定名称”。  详请参见 第 35.45 节。
+ordinal_position cardinal_number
+该参数在函数参数列表中的顺序位置（从 1 开始计数）
+parameter_mode character_data
+IN表示输入参数，OUT表示输出参数，INOUT表示输入/输出参数。
+is_result yes_or_no
+应用于一个PostgreSQL中不可用的特性
+as_locator yes_or_no
+应用于一个PostgreSQL中不可用的特性
+parameter_name sql_identifier
+参数名称，如果参数没有名称则为空
+data_type character_data
+该参数的数据类型，如果是一种内建类型，这里是该参数的数据类型；如果是某种数组（此种情况见视图element_types），则为ARRAY；
+否则为USER-DEFINED（此种情况中，该类型被标识在udt_name和相关列中）。
+character_maximum_length cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+character_octet_length cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+character_set_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+character_set_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+collation_catalog sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+collation_schema sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+collation_name sql_identifier
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+numeric_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+numeric_precision_radix cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+numeric_scale cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+datetime_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+interval_type character_data
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+interval_precision cardinal_number
+总是为空，因为这种信息不适用于PostgreSQL中的参数数据类型
+udt_catalog sql_identifier
+该参数的数据类型所在的数据库名称（总是当前数据库）
+udt_schema sql_identifier
+该参数的数据类型所在的模式名称
+udt_name sql_identifier
+该参数的数据类型的名称
+scope_catalog sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_schema sql_identifier
+应用于一个PostgreSQL中不可用的特性
+scope_name sql_identifier
+应用于一个PostgreSQL中不可用的特性
+maximum_cardinality cardinal_number
+总是空，因为数组在PostgreSQL中总是有无限的最大势
+dtd_identifier sql_identifier
+该参数的数据类型描述符的一个标识符，在从属于该函数的数据类型描述符中唯一。
+这主要用于与这类标识符的其他实例进行连接（该标识符的具体格式没有被定义，并且不保证在未来的版本中保持相同）。
+parameter_default character_data
+该参数的默认表达式，如果没有或者该函数不被一个当前启用的角色拥有则为空值。
+上一页 上一级 下一页35.32. key_column_usage 起始页 35.34. referential_constraints
