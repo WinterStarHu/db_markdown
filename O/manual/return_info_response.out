@@ -1,0 +1,43 @@
+$ bash return_info_response.sh   # stdout captured verbatim
+(VM: Oracle AI Database 26ai Free / OL8 ; DB 23.26.0.0.0 ; run as SYS ; 2026-09-24)
+
+===== R1. get_response(return_info_response=>FALSE) [default]: final 200 =====
+R1 status=200 OK
+R1 body len=559
+
+PL/SQL procedure successfully completed.
+
+===== R2. TRUE -> 100; then FALSE -> 200 (correct two-step) =====
+R2 TRUE  -> status=100 Continue
+R2 FALSE -> status=200 OK
+R2 body len=559
+
+PL/SQL procedure successfully completed.
+
+===== R3. loop get_response(TRUE): 1xx not advanced -> ORA-29270 -> ORA-03113 crash =====
+R3 iter#1 status=100 Continue
+R3 iter#2 status=100 Continue
+R3 iter#3 status=100 Continue
+R3 iter#4 status=100 Continue
+R3 iter#5 status=100 Continue
+R3 caught: -29273 ORA-29270: too many open HTTP requests (after 6 iters)
+
+PL/SQL procedure successfully completed.
+
+ERROR:
+ORA-03113: end-of-file on communication channel
+Process ID: 0
+Session ID: 54 Serial number: 36435
+Help: https://docs.oracle.com/error-help/db/ora-03113
+
+===== DONE =====
+
+-- Notes:
+--  R1 (FALSE, default): skips 1xx informational, returns final 200 + body. Normal usage.
+--  R2 (TRUE then FALSE): TRUE returns the 1xx (100 Continue); a following FALSE advances
+--      to the final 200 + body. Correct two-step usage.
+--  R3 (looping TRUE): the 1xx is not advanced/consumed; each get_response(TRUE) opens a new
+--      request context without closing the previous, accumulating until the UTL_HTTP per-session
+--      limit of open HTTP requests (default 5) is exceeded -> ORA-29270, raised and caught
+--      normally by EXCEPTION. The trailing ORA-03113 is the session connection left unusable
+--      (unclosed requests), not a server-process segfault. It is a session limit, not a "crash".
